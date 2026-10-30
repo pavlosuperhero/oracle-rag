@@ -1,0 +1,42 @@
+provider:
+  provider: Bedrock
+  model: amazon.titan-embed-text-v2:0
+  dimensions: 256
+  region: null
+  profile: null
+  worker: 2
+  connection_timeout: 10
+  read_timeout: 60
+  retry_attempts: 8
+  progress_interval: 80
+chunking:
+  size: 2400
+  ovelap: 500
+retrieval:
+  top_k: 5
+  candidates: 40
+  candidate_multiplier: 4
+  rrf_constant: 60
+server:
+  host: 127.0.0.1
+  port: 8742
+  client_url: null
+  connection_timeout: 5
+  query_timeout: 120
+  catalog_timeout: 30
+storage:
+  index: "../vector_database/index.npz"
+data:
+  directory: "../data"
+  manifest: "../data/sources.json"
+  download_timout: 120
+  max_download_bytes: 104857600
+logging:
+  level: INFO
+  file: null
+  max_bytes: 5000000
+  backup_count: 3
+  format: "%(asctime)s %(levelname)s %(name)s %(message)s"
+development:
+  shutdown_timout: 5
+

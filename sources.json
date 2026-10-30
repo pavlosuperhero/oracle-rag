@@ -1,0 +1,888 @@
+{
+  "resources": [
+    {
+      "id": "multiagent-systems-foundations",
+      "title": "Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations",
+      "source": "https://www.masfoundations.org/download.html",
+      "author": "Yoav Shoham and Kevin Leyton-Brown",
+      "license": "Copyright 2009, Yoav Shoham and Kevin Leyton-Brown. Author-authorized free electronic manuscript for screen viewing; not an open-content license. Do not redistribute; see source page for printing restrictions.",
+      "note": "Full textbook on multi-agent coordination: distributed problem solving, optimization, communication, learning, and collective decision-making. Foundational theory, not a modern LLM orchestration framework guide. The authors provide this uncorrected manuscript with Cambridge University Press permission; cite the landing page rather than the PDF.",
+      "downloads": [
+        {
+          "filename": "multiagent-systems.pdf",
+          "url": "https://www.masfoundations.org/mas.pdf"
+        }
+      ]
+    },
+    {
+      "id": "tdd-with-python",
+      "title": "Test-Driven Development with Python",
+      "source": "https://www.obeythetestinggoat.com/pages/book.html",
+      "author": "Harry J. W. Percival",
+      "license": "Creative Commons; author-hosted free online edition",
+      "note": "Full online book: 27 chapters, three part introductions, preface, epilogue, eight appendices, and bibliography. Chapter URLs follow the author's current table of contents.",
+      "downloads": [
+        {
+          "filename": "preface.html",
+          "url": "https://www.obeythetestinggoat.com/book/preface.html"
+        },
+        {
+          "filename": "part1.forbook.html",
+          "url": "https://www.obeythetestinggoat.com/book/part1.forbook.html"
+        },
+        {
+          "filename": "chapter_01.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_01.html"
+        },
+        {
+          "filename": "chapter_02_unittest.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_02_unittest.html"
+        },
+        {
+          "filename": "chapter_03_unit_test_first_view.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_03_unit_test_first_view.html"
+        },
+        {
+          "filename": "chapter_04_philosophy_and_refactoring.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_04_philosophy_and_refactoring.html"
+        },
+        {
+          "filename": "chapter_05_post_and_database.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_05_post_and_database.html"
+        },
+        {
+          "filename": "chapter_06_explicit_waits_1.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_06_explicit_waits_1.html"
+        },
+        {
+          "filename": "chapter_07_working_incrementally.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_07_working_incrementally.html"
+        },
+        {
+          "filename": "chapter_08_prettification.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_08_prettification.html"
+        },
+        {
+          "filename": "part2.forbook.html",
+          "url": "https://www.obeythetestinggoat.com/book/part2.forbook.html"
+        },
+        {
+          "filename": "chapter_09_docker.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_09_docker.html"
+        },
+        {
+          "filename": "chapter_10_production_readiness.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_10_production_readiness.html"
+        },
+        {
+          "filename": "chapter_11_server_prep.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_11_server_prep.html"
+        },
+        {
+          "filename": "chapter_12_ansible.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_12_ansible.html"
+        },
+        {
+          "filename": "part3.forbook.html",
+          "url": "https://www.obeythetestinggoat.com/book/part3.forbook.html"
+        },
+        {
+          "filename": "chapter_13_organising_test_files.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_13_organising_test_files.html"
+        },
+        {
+          "filename": "chapter_14_database_layer_validation.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_14_database_layer_validation.html"
+        },
+        {
+          "filename": "chapter_15_simple_form.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_15_simple_form.html"
+        },
+        {
+          "filename": "chapter_16_advanced_forms.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_16_advanced_forms.html"
+        },
+        {
+          "filename": "chapter_17_javascript.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_17_javascript.html"
+        },
+        {
+          "filename": "chapter_18_second_deploy.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_18_second_deploy.html"
+        },
+        {
+          "filename": "chapter_19_spiking_custom_auth.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_19_spiking_custom_auth.html"
+        },
+        {
+          "filename": "chapter_20_mocking_1.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_20_mocking_1.html"
+        },
+        {
+          "filename": "chapter_21_mocking_2.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_21_mocking_2.html"
+        },
+        {
+          "filename": "chapter_22_fixtures_and_wait_decorator.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_22_fixtures_and_wait_decorator.html"
+        },
+        {
+          "filename": "chapter_23_debugging_prod.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_23_debugging_prod.html"
+        },
+        {
+          "filename": "chapter_24_outside_in.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_24_outside_in.html"
+        },
+        {
+          "filename": "chapter_25_CI.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_25_CI.html"
+        },
+        {
+          "filename": "chapter_26_page_pattern.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_26_page_pattern.html"
+        },
+        {
+          "filename": "chapter_27_hot_lava.html",
+          "url": "https://www.obeythetestinggoat.com/book/chapter_27_hot_lava.html"
+        },
+        {
+          "filename": "epilogue.html",
+          "url": "https://www.obeythetestinggoat.com/book/epilogue.html"
+        },
+        {
+          "filename": "appendix_fts_for_external_dependencies.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_fts_for_external_dependencies.html"
+        },
+        {
+          "filename": "appendix_CD.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_CD.html"
+        },
+        {
+          "filename": "appendix_bdd.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_bdd.html"
+        },
+        {
+          "filename": "appendix_purist_unit_tests.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_purist_unit_tests.html"
+        },
+        {
+          "filename": "appendix_rest_api.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_rest_api.html"
+        },
+        {
+          "filename": "appendix_IX_cheat_sheet.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_IX_cheat_sheet.html"
+        },
+        {
+          "filename": "appendix_X_what_to_do_next.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_X_what_to_do_next.html"
+        },
+        {
+          "filename": "appendix_github_links.html",
+          "url": "https://www.obeythetestinggoat.com/book/appendix_github_links.html"
+        },
+        {
+          "filename": "bibliography.html",
+          "url": "https://www.obeythetestinggoat.com/book/bibliography.html"
+        }
+      ]
+    },
+    {
+      "id": "spec-driven-development",
+      "title": "Spec-Driven Development - GitHub Spec Kit Guides",
+      "source": "https://github.com/github/spec-kit",
+      "author": "GitHub",
+      "license": "MIT",
+      "note": "Official SDD guides, not a book: concepts, agentic development workflow, and worked quickstart. Selected as a freely available primary source.",
+      "downloads": [
+        {
+          "filename": "spec_driven_development.html",
+          "url": "https://github.github.io/spec-kit/concepts/sdd.html"
+        },
+        {
+          "filename": "agentic_sdd.html",
+          "url": "https://github.github.io/spec-kit/reference/agentic-sdd.html"
+        },
+        {
+          "filename": "spec_kit_quickstart.html",
+          "url": "https://github.github.io/spec-kit/quickstart.html"
+        }
+      ]
+    },
+    {
+      "id": "think-python",
+      "title": "Think Python, Second Edition",
+      "source": "https://greenteapress.com/wp/think-python-2e/",
+      "author": "Allen B. Downey",
+      "license": "CC BY-NC 3.0",
+      "downloads": [
+        {
+          "filename": "think_python_2e.pdf",
+          "url": "https://greenteapress.com/thinkpython2/thinkpython2.pdf"
+        }
+      ]
+    },
+    {
+      "id": "google-python",
+      "title": "Google Python Style Guide",
+      "source": "https://google.github.io/styleguide/pyguide.html",
+      "note": "Official HTML guide; browser-generated PDF is not a downloadable source.",
+      "downloads": [
+        {
+          "filename": "google_python_style_guide.html",
+          "url": "https://google.github.io/styleguide/pyguide.html"
+        }
+      ]
+    },
+    {
+      "id": "tests",
+      "title": "pytest Documentation, stable",
+      "source": "https://docs.pytest.org/en/stable/",
+      "note": "Free testing documentation selected instead of an unspecified tests book.",
+      "downloads": [
+        {
+          "filename": "tests.pdf",
+          "url": "https://docs.pytest.org/_/downloads/en/stable/pdf/"
+        }
+      ]
+    },
+    {
+      "id": "peps",
+      "title": "Python Enhancement Proposals",
+      "source": "https://github.com/python/peps",
+      "note": "Curated Python coding RAG selection: PEPs 8, 20, 257, 387, 440, 484, 526, 544, 585, 604, 621, and 695. Individual reStructuredText downloads.",
+      "downloads": [
+        {
+          "filename": "pep-0008.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0008.rst"
+        },
+        {
+          "filename": "pep-0020.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0020.rst"
+        },
+        {
+          "filename": "pep-0257.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0257.rst"
+        },
+        {
+          "filename": "pep-0387.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0387.rst"
+        },
+        {
+          "filename": "pep-0440.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0440.rst"
+        },
+        {
+          "filename": "pep-0484.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0484.rst"
+        },
+        {
+          "filename": "pep-0526.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0526.rst"
+        },
+        {
+          "filename": "pep-0544.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0544.rst"
+        },
+        {
+          "filename": "pep-0585.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0585.rst"
+        },
+        {
+          "filename": "pep-0604.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0604.rst"
+        },
+        {
+          "filename": "pep-0621.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0621.rst"
+        },
+        {
+          "filename": "pep-0695.rst",
+          "url": "https://raw.githubusercontent.com/python/peps/main/peps/pep-0695.rst"
+        }
+      ]
+    },
+    {
+      "id": "clean-architecture",
+      "title": "The Clean Architecture",
+      "source": "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html",
+      "author": "Robert C. Martin",
+      "note": "Public article, not the commercial book. Downloads the official HTML.",
+      "downloads": [
+        {
+          "filename": "clean_architecture.html",
+          "url": "https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"
+        }
+      ]
+    },
+    {
+      "id": "producing-oss",
+      "title": "Producing Open Source Software: How to Run a Successful Free Software Project",
+      "source": "https://producingoss.com/en/index.html",
+      "author": "Karl Fogel",
+      "license": "CC BY-SA 4.0",
+      "note": "Second edition; practical software project practices including version control, code review, QA, and releases.",
+      "downloads": [
+        {
+          "filename": "producing_open_source_software.pdf",
+          "url": "https://producingoss.com/en/producingoss-a4.pdf"
+        }
+      ]
+    },
+    {
+      "id": "rag-survey",
+      "title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+      "source": "https://arxiv.org/abs/2312.10997",
+      "author": "Yunfan Gao et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright",
+      "note": "Author-linked technical survey (not a conventional book), covering Naive, Advanced, and Modular RAG, retrieval/generation/augmentation, and evaluation. Local reference copy; license does not grant blanket redistribution rights.",
+      "downloads": [
+        {
+          "filename": "rag_for_llms_survey.pdf",
+          "url": "https://arxiv.org/pdf/2312.10997"
+        }
+      ]
+    },
+    {
+      "id": "prompt-engineering",
+      "title": "Prompt Engineering",
+      "source": "https://www.kaggle.com/whitepaper-prompt-engineering",
+      "author": "Lee Boonstra",
+      "note": "Google whitepaper obtained from the Google Drive document embedded on the official Kaggle page.",
+      "downloads": [
+        {
+          "filename": "google_prompt_engineering.pdf",
+          "url": "https://drive.google.com/uc?export=download&id=1AbAYbEa_EbPelT40-vJ64L-2IwUJHy"
+        }
+      ]
+    },
+    {
+      "id": "istqb-ctfl",
+      "title": "ISTQB Certified Tester Foundation Level Syllabus v4.0.1",
+      "source": "https://istqb.org/certifications/certified-tester-foundation-level-ctfl-v4-0/",
+      "downloads": [
+        {
+          "filename": "istqb_ctfl_v4_0_1.pdf",
+          "url": "https://istqb.org/?sdm_process_download=1&download_id=3345"
+        }
+      ]
+    },
+    {
+      "id": "playwright-best-practices",
+      "title": "Playwright Test Best Practices",
+      "source": "https://playwright.dev/docs/best-practices",
+      "downloads": [
+        {
+          "filename": "playwright_best_practices.html",
+          "url": "https://playwright.dev/docs/best-practices"
+        }
+      ]
+    },
+    {
+      "id": "claude-code-skills",
+      "title": "Extend Claude with Skills – Claude Code Documentation",
+      "source": "https://docs.anthropic.com/en/docs/claude-code/skills",
+      "author": "Anthropic",
+      "downloads": [
+        {
+          "filename": "claude_code_skills.html",
+          "url": "https://code.claude.com/docs/en/skills"
+        }
+      ]
+    },
+    {
+      "id": "claude-code-plugins",
+      "title": "Claude Code Plugins – Overview and Authoring Documentation",
+      "source": "https://code.claude.com/docs/en/plugins",
+      "author": "Anthropic",
+      "downloads": [
+        {
+          "filename": "claude_code_plugins.html",
+          "url": "https://code.claude.com/docs/en/plugins"
+        }
+      ]
+    },
+    {
+      "id": "mcp-beginners-introduction",
+      "title": "MCP for Beginners – Introduction",
+      "source": "https://raw.githubusercontent.com/microsoft/mcp-for-beginners/main/00-Introduction/README.md",
+      "license": "MIT",
+      "downloads": [
+        {
+          "filename": "mcp-introduction.md",
+          "url": "https://raw.githubusercontent.com/microsoft/mcp-for-beginners/main/00-Introduction/README.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-beginners-core",
+      "title": "MCP for Beginners – Core Concepts",
+      "source": "https://raw.githubusercontent.com/microsoft/mcp-for-beginners/main/01-CoreConcepts/README.md",
+      "license": "MIT",
+      "downloads": [
+        {
+          "filename": "mcp-core-concepts.md",
+          "url": "https://raw.githubusercontent.com/microsoft/mcp-for-beginners/main/01-CoreConcepts/README.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-beginners-practices",
+      "title": "MCP for Beginners – Best Practices",
+      "source": "https://raw.githubusercontent.com/microsoft/mcp-for-beginners/main/08-BestPractices/README.md",
+      "license": "MIT",
+      "downloads": [
+        {
+          "filename": "mcp-best-practices.md",
+          "url": "https://raw.githubusercontent.com/microsoft/mcp-for-beginners/main/08-BestPractices/README.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-specification-2026",
+      "title": "MCP Specification 2026-07-28 – Overview",
+      "source": "https://modelcontextprotocol.io/specification/2026-07-28.md",
+      "license": "Apache-2.0 specification",
+      "downloads": [
+        {
+          "filename": "mcp-specification-2026.md",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28.md"
+        }
+      ]
+    },
+    {
+      "id": "copilot-mcp-guide",
+      "title": "GitHub Copilot – Enhancing Agent Mode with MCP",
+      "source": "https://docs.github.com/en/copilot/tutorials/enhance-agent-mode-with-mcp",
+      "license": "CC-BY-4.0",
+      "downloads": [
+        {
+          "filename": "copilot-mcp-guide.html",
+          "url": "https://docs.github.com/en/copilot/tutorials/enhance-agent-mode-with-mcp"
+        }
+      ]
+    },
+    {
+      "id": "copilot-overview",
+      "title": "GitHub Copilot – About GitHub Copilot",
+      "source": "https://docs.github.com/en/copilot/get-started/what-is-github-copilot",
+      "license": "CC-BY-4.0",
+      "downloads": [
+        {
+          "filename": "copilot-overview.html",
+          "url": "https://docs.github.com/en/copilot/get-started/what-is-github-copilot"
+        }
+      ]
+    },
+    {
+      "id": "copilot-cli-guide",
+      "title": "GitHub Copilot CLI – Quickstart",
+      "source": "https://docs.github.com/en/copilot/get-started/cli-quickstart",
+      "license": "CC-BY-4.0",
+      "downloads": [
+        {
+          "filename": "copilot-cli-quickstart.html",
+          "url": "https://docs.github.com/en/copilot/get-started/cli-quickstart"
+        }
+      ]
+    },
+    {
+      "id": "copilot-agent-skills",
+      "title": "VS Code – Agent Skills",
+      "source": "https://code.visualstudio.com/docs/agent-customization/agent-skills",
+      "license": "Official publicly available documentation",
+      "downloads": [
+        {
+          "filename": "copilot-agent-skills.html",
+          "url": "https://code.visualstudio.com/docs/agent-customization/agent-skills"
+        }
+      ]
+    },
+    {
+      "id": "ir-textbook",
+      "title": "Introduction to Information Retrieval – Complete Online Edition",
+      "source": "https://nlp.stanford.edu/IR-book/pdf/irbookonlinereading.pdf",
+      "downloads": [
+        {
+          "filename": "introduction-information-retrieval.pdf",
+          "url": "https://nlp.stanford.edu/IR-book/pdf/irbookonlinereading.pdf"
+        }
+      ]
+    },
+    {
+      "id": "beir-guide",
+      "title": "BEIR – Retrieval Benchmark Usage and Evaluation",
+      "source": "https://raw.githubusercontent.com/beir-cellar/beir/main/README.md",
+      "downloads": [
+        {
+          "filename": "beir-guide.md",
+          "url": "https://raw.githubusercontent.com/beir-cellar/beir/main/README.md"
+        }
+      ]
+    },
+    {
+      "id": "python-asyncio",
+      "title": "Python 3.11 – asyncio Tasks and Cancellation",
+      "source": "https://docs.python.org/3.11/library/asyncio-task.html",
+      "downloads": [
+        {
+          "filename": "python-asyncio.html",
+          "url": "https://docs.python.org/3.11/library/asyncio-task.html"
+        }
+      ]
+    },
+    {
+      "id": "python-exceptions",
+      "title": "Python 3.11 – Errors and Exceptions",
+      "source": "https://docs.python.org/3.11/tutorial/errors.html",
+      "downloads": [
+        {
+          "filename": "python-exceptions.html",
+          "url": "https://docs.python.org/3.11/tutorial/errors.html"
+        }
+      ]
+    },
+    {
+      "id": "python-subprocess",
+      "title": "Python 3.11 – subprocess and Process Management",
+      "source": "https://docs.python.org/3.11/library/subprocess.html",
+      "downloads": [
+        {
+          "filename": "python-subprocess.html",
+          "url": "https://docs.python.org/3.11/library/subprocess.html"
+        }
+      ]
+    },
+    {
+      "id": "pydantic-models",
+      "title": "Pydantic – Models and Validation",
+      "source": "https://docs.pydantic.dev/latest/concepts/models/",
+      "downloads": [
+        {
+          "filename": "pydantic-models.html",
+          "url": "https://docs.pydantic.dev/latest/concepts/models/"
+        }
+      ]
+    },
+    {
+      "id": "fastapi-errors",
+      "title": "FastAPI – Handling Errors",
+      "source": "https://fastapi.tiangolo.com/tutorial/handling-errors/",
+      "downloads": [
+        {
+          "filename": "fastapi-errors.html",
+          "url": "https://fastapi.tiangolo.com/tutorial/handling-errors/"
+        }
+      ]
+    },
+    {
+      "id": "httpx-timeouts",
+      "title": "HTTPX – Timeouts",
+      "source": "https://www.python-httpx.org/advanced/timeouts/",
+      "downloads": [
+        {
+          "filename": "httpx-timeouts.html",
+          "url": "https://www.python-httpx.org/advanced/timeouts/"
+        }
+      ]
+    },
+    {
+      "id": "numpy-io",
+      "title": "NumPy – Array Input and Output",
+      "source": "https://numpy.org/doc/stable/reference/routines.io.html",
+      "downloads": [
+        {
+          "filename": "numpy-io.html",
+          "url": "https://numpy.org/doc/stable/reference/routines.io.html"
+        }
+      ]
+    },
+    {
+      "id": "mcp-transports-2025",
+      "title": "MCP 2025-06-18 – Transports",
+      "source": "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports.md",
+      "downloads": [
+        {
+          "filename": "mcp-transports-2025.md",
+          "url": "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-lifecycle-2025",
+      "title": "MCP 2025-06-18 – Lifecycle",
+      "source": "https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle.md",
+      "downloads": [
+        {
+          "filename": "mcp-lifecycle-2025.md",
+          "url": "https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-tools-2025",
+      "title": "MCP 2025-06-18 – Tools",
+      "source": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools.md",
+      "downloads": [
+        {
+          "filename": "mcp-tools-2025.md",
+          "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-resources-2025",
+      "title": "MCP 2025-06-18 – Resources",
+      "source": "https://modelcontextprotocol.io/specification/2025-06-18/server/resources.md",
+      "downloads": [
+        {
+          "filename": "mcp-resources-2025.md",
+          "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/resources.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-security-2026",
+      "title": "MCP 2026-07-28 – Security Best Practices",
+      "source": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices.md",
+      "downloads": [
+        {
+          "filename": "mcp-security-2026.md",
+          "url": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices.md"
+        }
+      ]
+    },
+    {
+      "id": "mcp-python-sdk",
+      "title": "MCP Python SDK – Official Guide",
+      "source": "https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/main/README.md",
+      "downloads": [
+        {
+          "filename": "mcp-python-sdk.md",
+          "url": "https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/main/README.md"
+        }
+      ]
+    },
+    {
+      "id": "copilot-instructions",
+      "title": "GitHub Copilot – Repository Instructions in Your IDE",
+      "source": "https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/customize-copilot/configure-custom-instructions/add-repository-instructions-in-your-ide",
+      "downloads": [
+        {
+          "filename": "copilot-instructions.html",
+          "url": "https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/customize-copilot/configure-custom-instructions/add-repository-instructions-in-your-ide"
+        }
+      ]
+    },
+    {
+      "id": "copilot-custom-agents",
+      "title": "VS Code – Custom Agents",
+      "source": "https://code.visualstudio.com/docs/agent-customization/custom-agents",
+      "downloads": [
+        {
+          "filename": "copilot-custom-agents.html",
+          "url": "https://code.visualstudio.com/docs/agent-customization/custom-agents"
+        }
+      ]
+    },
+    {
+      "id": "copilot-mcp-configuration",
+      "title": "VS Code – MCP Servers",
+      "source": "https://code.visualstudio.com/docs/copilot/customization/mcp-servers",
+      "downloads": [
+        {
+          "filename": "copilot-mcp-configuration.html",
+          "url": "https://code.visualstudio.com/docs/copilot/customization/mcp-servers"
+        }
+      ]
+    },
+    {
+      "id": "bedrock-embeddings",
+      "title": "Amazon Bedrock – Titan Embeddings Models",
+      "source": "https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html",
+      "downloads": [
+        {
+          "filename": "bedrock-embeddings.html",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html"
+        }
+      ]
+    },
+    {
+      "id": "boto3-retries",
+      "title": "Boto3 – Retries",
+      "source": "https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html",
+      "downloads": [
+        {
+          "filename": "boto3-retries.html",
+          "url": "https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html"
+        }
+      ]
+    },
+    {
+      "id": "opentelemetry-python",
+      "title": "OpenTelemetry Python – Instrumentation",
+      "source": "https://opentelemetry.io/docs/languages/python/instrumentation/",
+      "downloads": [
+        {
+          "filename": "opentelemetry-python.html",
+          "url": "https://opentelemetry.io/docs/languages/python/instrumentation/"
+        }
+      ]
+    },
+    {
+      "id": "cosmic-python-domain",
+      "title": "Architecture Patterns with Python – Domain Modeling",
+      "source": "https://www.cosmicpython.com/book/chapter_01_domain_model.html",
+      "downloads": [
+        {
+          "filename": "cosmic-domain.html",
+          "url": "https://www.cosmicpython.com/book/chapter_01_domain_model.html"
+        }
+      ]
+    },
+    {
+      "id": "cosmic-python-repository",
+      "title": "Architecture Patterns with Python – Repository Pattern",
+      "source": "https://www.cosmicpython.com/book/chapter_02_repository.html",
+      "downloads": [
+        {
+          "filename": "cosmic-repository.html",
+          "url": "https://www.cosmicpython.com/book/chapter_02_repository.html"
+        }
+      ]
+    },
+    {
+      "id": "cosmic-python-service",
+      "title": "Architecture Patterns with Python – Service Layer",
+      "source": "https://www.cosmicpython.com/book/chapter_04_service_layer.html",
+      "downloads": [
+        {
+          "filename": "cosmic-service.html",
+          "url": "https://www.cosmicpython.com/book/chapter_04_service_layer.html"
+        }
+      ]
+    },
+    {
+      "id": "cosmic-python-di",
+      "title": "Architecture Patterns with Python – Dependency Injection",
+      "source": "https://www.cosmicpython.com/book/chapter_13_dependency_injection.html",
+      "downloads": [
+        {
+          "filename": "cosmic-di.html",
+          "url": "https://www.cosmicpython.com/book/chapter_13_dependency_injection.html"
+        }
+      ]
+    },
+    {
+      "id": "python-ast",
+      "title": "Python – Abstract Syntax Trees",
+      "source": "https://docs.python.org/3/library/ast.html",
+      "downloads": [
+        {
+          "filename": "python-ast.html",
+          "url": "https://docs.python.org/3/library/ast.html"
+        }
+      ]
+    },
+    {
+      "id": "python-symtable",
+      "title": "Python – Symbol Tables and Scopes",
+      "source": "https://docs.python.org/3/library/symtable.html",
+      "downloads": [
+        {
+          "filename": "python-symtable.html",
+          "url": "https://docs.python.org/3/library/symtable.html"
+        }
+      ]
+    },
+    {
+      "id": "libcst-guide",
+      "title": "LibCST – Official Project Guide",
+      "source": "https://raw.githubusercontent.com/Instagram/LibCST/main/README.rst",
+      "downloads": [
+        {
+          "filename": "libcst-guide.rst",
+          "url": "https://raw.githubusercontent.com/Instagram/LibCST/main/README.rst"
+        }
+      ]
+    },
+    {
+      "id": "astroid-guide",
+      "title": "Astroid – Python Static Analysis and Inference",
+      "source": "https://astroid.readthedocs.io/en/latest/",
+      "downloads": [
+        {
+          "filename": "astroid-guide.html",
+          "url": "https://astroid.readthedocs.io/en/latest/"
+        }
+      ]
+    },
+    {
+      "id": "interpreter-python-aosa",
+      "title": "A Python Interpreter Written in Python – Allison Kaptur",
+      "source": "https://aosabook.org/en/500L/a-python-interpreter-written-in-python.html",
+      "downloads": [
+        {
+          "filename": "python-interpreter-aosa.html",
+          "url": "https://aosabook.org/en/500L/a-python-interpreter-written-in-python.html"
+        }
+      ]
+    },
+    {
+      "id": "spivak-interpreter-01",
+      "title": "Lets Build A Simple Interpreter – Part 1",
+      "source": "https://ruslanspivak.com/lsbasi-part1/",
+      "downloads": [
+        {
+          "filename": "interpreter-part01.html",
+          "url": "https://ruslanspivak.com/lsbasi-part1/"
+        }
+      ]
+    },
+    {
+      "id": "spivak-interpreter-07",
+      "title": "Lets Build A Simple Interpreter – Part 7, ASTs",
+      "source": "https://ruslanspivak.com/lsbasi-part7/",
+      "downloads": [
+        {
+          "filename": "interpreter-part07.html",
+          "url": "https://ruslanspivak.com/lsbasi-part7/"
+        }
+      ]
+    },
+    {
+      "id": "spivak-interpreter-09",
+      "title": "Lets Build A Simple Interpreter – Part 9",
+      "source": "https://ruslanspivak.com/lsbasi-part9/",
+      "downloads": [
+        {
+          "filename": "interpreter-part09.html",
+          "url": "https://ruslanspivak.com/lsbasi-part9/"
+        }
+      ]
+    },
+    {
+      "id": "spivak-interpreter-11",
+      "title": "Lets Build A Simple Interpreter – Part 11, Symbols",
+      "source": "https://ruslanspivak.com/lsbasi-part11/",
+      "downloads": [
+        {
+          "filename": "interpreter-part11.html",
+          "url": "https://ruslanspivak.com/lsbasi-part11/"
+        }
+      ]
+    },
+    {
+      "id": "spivak-interpreter-14",
+      "title": "Lets Build A Simple Interpreter – Part 14, Scoped Symbol Tables",
+      "source": "https://ruslanspivak.com/lsbasi-part14/",
+      "downloads": [
+        {
+          "filename": "interpreter-part14.html",
+          "url": "https://ruslanspivak.com/lsbasi-part14/"
+        }
+      ]
+    }
+  ]
+}
