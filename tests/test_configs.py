@@ -92,9 +92,10 @@ def test_load_config_defaults_without_existing_file(
     expected_path = (tmp_path / ".config" / "oracle" / "configs" / "config.yaml").resolve()
     assert settings.path == expected_path
     assert not expected_path.exists()
-    assert settings.provider.provider == "Bedrock"
-    assert settings.provider.model == "amazon.titan-embed-text-v2:0"
-    assert settings.provider.dimensions == 256
+    assert settings.provider.provider == "OpenAI"
+    assert settings.provider.model == "text-embedding-bge-large-en-v1.5"
+    assert settings.provider.dimensions == 1024
+    assert settings.provider.base_url == "http://127.0.0.1:1234/v1"
     assert settings.chunking.size == 2400
     assert settings.chunking.ovelap == 500
     assert settings.retrieval.top_k == 5
@@ -116,7 +117,9 @@ def test_load_config_initialize_writes_default_file(
     assert settings.path == expected_path
     assert expected_path.is_file()
     written = yaml.safe_load(expected_path.read_text(encoding="utf-8"))
-    assert written["provider"]["provider"] == "Bedrock"
+    assert written["provider"]["provider"] == "OpenAI"
+    assert written["provider"]["model"] == "text-embedding-bge-large-en-v1.5"
+    assert written["provider"]["base_url"] == "http://127.0.0.1:1234/v1"
     assert written["server"]["port"] == 8742
 
 
@@ -140,7 +143,8 @@ def test_load_config_merges_partial_overrides_from_explicit_path(tmp_path: Path)
     assert settings.provider.region == "us-east-1"
     assert settings.provider.worker == 8
     # Unspecified keys in section retain defaults
-    assert settings.provider.model == "amazon.titan-embed-text-v2:0"
+    assert settings.provider.model == "text-embedding-bge-large-en-v1.5"
+    assert settings.provider.base_url == "http://127.0.0.1:1234/v1"
     assert settings.server.port == 9000
     assert settings.server.host == "127.0.0.1"
     assert settings.server.url == "https://rag.example.com"
@@ -378,6 +382,8 @@ def test_load_config_strict_type_mismatch_raises(
         {"provider": {"provider": "openai"}},
         {"provider": {"model": "invalid-model-id"}},
         {"provider": {"dimensions": 128}},
+        {"provider": {"base_url": "ftp://127.0.0.1:1234"}},
+        {"provider": {"base_url": "localhost:1234"}},
         {"provider": {"worker": 0}},
         {"provider": {"worker": 17}},
         {"provider": {"connection_timeout": 0}},

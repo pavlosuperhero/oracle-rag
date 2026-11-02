@@ -1,12 +1,11 @@
 import os
-
 from importlib.resources import files
-from os.path import expanduser
 from pathlib import Path
-from typing import Literal, Set
+from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+
 
 class ConfigError(ValueError):
     pass
@@ -19,16 +18,31 @@ class ConfigSection(BaseModel):
 
     
 class AiProviderConfig(ConfigSection):
-    provider: Literal["Bedrock"]
-    model: Literal["amazon.titan-embed-text-v2:0"]
+    provider: Literal["Bedrock", "OpenAI"]
+    model: Literal["amazon.titan-embed-text-v2:0", "text-embedding-bge-large-en-v1.5"]
     dimensions: Literal[256, 512, 1024]
-    region: str | None
-    profile: str | None
+    base_url: str | None = "http://127.0.0.1:1234/v1"
+    region: str | None = None
+    profile: str | None = None
     worker: int = Field(ge=1, le=16)
     connection_timeout: int = Field(gt=0)
     read_timeout: int = Field(gt=0)
     retry_attempts: int = Field(ge=1, le=20)
     progress_interval: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_base_url(self) -> "AiProviderConfig":
+        if self.base_url is not None and not self.base_url.startswith(("http://", "https://")):
+            raise ValueError("Provider base_url must use http:// or https://")
+        return self
+
+    @property
+    def connect_timeout(self) -> int:
+        return self.connection_timeout
+
+    @property
+    def workers(self) -> int:
+        return self.worker
 
 
 class ChunkingConfig(ConfigSection):
@@ -103,6 +117,14 @@ class Settings(ConfigSection):
     @property
     def path(self) -> Path:
         return self._path
+
+    @property
+    def bedrock(self) -> AiProviderConfig:
+        return self.provider
+
+    @property
+    def openai(self) -> AiProviderConfig:
+        return self.provider
 
     def resolve_path(self, value: str) -> Path:
         path = Path(value).expanduser()
