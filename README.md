@@ -163,7 +163,10 @@ oracle ingest
 The manifest lives at the configured `data.manifest` path and uses a
 `{"resources": [...]}` object, as in this repository's `sources.json`. Downloads
 are stored under `<data.directory>/<source-id>/<filename>`. Existing downloads
-are reused unless `--force` is specified. `oracle data remove my-book` removes
+are reused unless `--force` is specified. Downloads show overall file progress
+and bytes transferred for the current file; use `--no-progress` to hide the bars.
+Progress is written to stderr, keeping stdout as a list of downloaded paths.
+`oracle data remove my-book` removes
 the registration; cached files and the existing index remain until cleanup or
 re-ingestion. Ingestion without a path requires every registered download to
 be present. `oracle clean` confirms before deleting saved indexes;
@@ -177,6 +180,7 @@ oracle install-skill
 oracle install-skill --target codex
 oracle install-skill --target copilot
 oracle install-skill --target claude
+oracle install-skill --target antigravity
 ```
 
 The default `--target all` installs the bundled Oracle skill at user level for Claude Code
@@ -186,6 +190,12 @@ The default `--target all` installs the bundled Oracle skill at user level for C
 [official skill documentation](https://learn.chatgpt.com/docs/build-skills).
 Use `@oracle` in ChatGPT desktop or `$oracle` / `/skills` in Codex CLI and the
 IDE extension. If it does not appear, restart the host.
+
+`--target antigravity` installs to both `~/.gemini/config/skills/oracle/SKILL.md`
+(Antigravity app/IDE) and `~/.gemini/antigravity-cli/skills/oracle/SKILL.md`
+(Antigravity CLI), following the
+[Antigravity skill documentation](https://antigravity.google/docs/skills).
+These destinations are also included in `--target all`. Invoke the skill with `/oracle`.
 
 Use `--directory /path/to/skills` to override the target and install only into a custom skill root,
 or `--force` to replace an existing different skill. Installation does not

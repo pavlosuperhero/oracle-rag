@@ -353,7 +353,7 @@
       "downloads": [
         {
           "filename": "google_prompt_engineering.pdf",
-          "url": "https://drive.google.com/uc?export=download&id=1AbAYbEa_EbPelT40-vJ64L-2IwUJHy"
+          "url": "https://drive.google.com/uc?export=download&id=1AbaBYbEa_EbPelsT40-vj64L-2IwUJHy"
         }
       ]
     },
@@ -503,10 +503,11 @@
       "id": "ir-textbook",
       "title": "Introduction to Information Retrieval – Complete Online Edition",
       "source": "https://nlp.stanford.edu/IR-book/pdf/irbookonlinereading.pdf",
+      "note": "Primary host (nlp.stanford.edu) is unreachable from some networks; download URL falls back to the Wayback Machine mirror.",
       "downloads": [
         {
           "filename": "introduction-information-retrieval.pdf",
-          "url": "https://nlp.stanford.edu/IR-book/pdf/irbookonlinereading.pdf"
+          "url": "https://web.archive.org/web/20241001120000/https://nlp.stanford.edu/IR-book/pdf/irbookonlinereading.pdf"
         }
       ]
     },

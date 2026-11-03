@@ -256,7 +256,7 @@ def run_all(executable: list[str], report: Path) -> int:
                         run("serve", "stop")
                 check(" ".join(args) + " (detached)", detached)
             check("serve stop", lambda: run("serve", "stop"))
-            for target in ("all", "codex", "copilot", "claude"):
+            for target in ("all", "codex", "copilot", "claude", "antigravity"):
                 def install(target=target) -> None:
                     directory = root / f"skills-{target}"
                     run("install-skill", "--target", target, "--directory", str(directory))

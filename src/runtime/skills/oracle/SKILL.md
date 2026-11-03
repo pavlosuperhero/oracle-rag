@@ -331,8 +331,11 @@ Skill maintenance
 The package bundles this skill. oracle install-skill installs it into
 ~/.claude/skills/oracle/SKILL.md, ~/.copilot/skills/oracle/SKILL.md, and
 ~/.agents/skills/oracle/SKILL.md for ChatGPT desktop and Codex.
-Use --target codex, --target copilot, or --target claude to install for one
-assistant; --target all is the default.
+Use --target codex, --target copilot, --target claude, or --target antigravity
+to install for one assistant; --target all is the default.
+Antigravity installs to both ~/.gemini/config/skills/oracle/SKILL.md for the
+app/IDE and ~/.gemini/antigravity-cli/skills/oracle/SKILL.md for the CLI.
+These locations are also included in all; invoke the skill with /oracle.
 In ChatGPT desktop, select the skill with @oracle; in Codex CLI or the IDE
 extension, use $oracle or /skills. A custom root can be selected with
 oracle install-skill --directory /path/to/skills.

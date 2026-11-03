@@ -3,9 +3,10 @@ import logging
 import os
 import re
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -17,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 class DataError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class DownloadProgress:
+    path: Path
+    received: int
+    total: int | None
+    completed_files: int
+    total_files: int
+    status: Literal["connecting", "downloading", "cached", "complete"]
 
 
 class Download(BaseModel):
@@ -149,6 +160,7 @@ def download_resources(
     *,
     all_sources: bool = False,
     force: bool = False,
+    progress: Callable[[DownloadProgress], None] | None = None,
 ) -> list[Path]:
     if bool(resource_ids) == all_sources:
         raise DataError("Choose source IDs or --all.")
@@ -159,21 +171,41 @@ def download_resources(
     selected = [resource for resource in resources if all_sources or resource.id in resource_ids]
     if not selected:
         raise DataError("No sources registered. Use oracle data add first.")
-    paths = []
+    paths: list[Path] = []
+    total_files = sum(len(resource.downloads) for resource in selected)
+
+    def report(path: Path, received: int, total: int | None,
+               status: Literal["connecting", "downloading", "cached", "complete"]) -> None:
+        if progress is not None:
+            completed = len(paths) + int(status in {"cached", "complete"})
+            progress(DownloadProgress(path, received, total, completed, total_files, status))
+
     with httpx.Client(timeout=settings.data.download_timeout, follow_redirects=True,
                       trust_env=False) as client:
         for resource in selected:
             for download in resource.downloads:
                 path = download_path(settings, resource, download)
                 if path.is_file() and not force:
+                    size = path.stat().st_size
+                    report(path, size, size, "cached")
                     paths.append(path)
                     continue
                 path.parent.mkdir(parents=True, exist_ok=True)
                 temporary: Path | None = None
                 try:
+                    report(path, 0, None, "connecting")
                     with client.stream("GET", download.url) as response:
                         response.raise_for_status()
+                        try:
+                            total = int(response.headers.get("Content-Length", ""))
+                        except ValueError:
+                            total = None
+                        if response.headers.get("Content-Encoding", "identity") != "identity":
+                            total = None
+                        if total is not None and total <= 0:
+                            total = None
                         size = 0
+                        report(path, size, total, "downloading")
                         with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as file:
                             temporary = Path(file.name)
                             for chunk in response.iter_bytes():
@@ -181,9 +213,11 @@ def download_resources(
                                 if size > settings.data.max_download_bytes:
                                     raise DataError(f"Download exceeds byte limit: {download.url}")
                                 file.write(chunk)
+                                report(path, size, total, "downloading")
                         if size == 0:
                             raise DataError(f"Empty download: {download.url}")
                     os.replace(temporary, path)
+                    report(path, size, size, "complete")
                     logger.info("Downloaded %s to %s", resource.id, path)
                 except httpx.HTTPError as exc:
                     raise DataError(f"Cannot download {download.url}: {exc}") from exc

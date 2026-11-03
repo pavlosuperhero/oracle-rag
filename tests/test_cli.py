@@ -141,7 +141,8 @@ def test_skill_installs_for_all_hosts(
     result = invoke(settings, "install-skill", *options)
     assert result.exit_code == 0, result.output
     skills = [
-        tmp_path / host / "skills/oracle/SKILL.md" for host in (".claude", ".copilot", ".agents")
+        tmp_path / host / "skills/oracle/SKILL.md"
+        for host in (".claude", ".copilot", ".agents", ".gemini/config", ".gemini/antigravity-cli")
     ]
     assert all(skill.is_file() for skill in skills)
     assert len({skill.read_bytes() for skill in skills}) == 1
@@ -149,28 +150,37 @@ def test_skill_installs_for_all_hosts(
 
 
 @pytest.mark.parametrize(
-    "target, host",
+    "target, hosts",
     [
-        ("codex", ".agents"),
-        ("copilot", ".copilot"),
-        ("claude", ".claude"),
+        ("codex", (".agents",)),
+        ("copilot", (".copilot",)),
+        ("claude", (".claude",)),
+        ("antigravity", (".gemini/config", ".gemini/antigravity-cli")),
     ],
 )
-def test_skill_installs_only_selected_host(settings, tmp_path, monkeypatch, target, host) -> None:
+def test_skill_installs_only_selected_host(settings, tmp_path, monkeypatch, target, hosts) -> None:
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     result = invoke(settings, "install-skill", "--target", target)
     assert result.exit_code == 0, result.output
-    for directory in (".agents", ".copilot", ".claude"):
-        assert (tmp_path / directory / "skills/oracle/SKILL.md").exists() == (directory == host)
+    for directory in (
+        ".agents",
+        ".copilot",
+        ".claude",
+        ".gemini/config",
+        ".gemini/antigravity-cli",
+    ):
+        assert (tmp_path / directory / "skills/oracle/SKILL.md").exists() == (directory in hosts)
 
 
-def test_skill_target_can_use_custom_directory(settings, tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize("target", ["codex", "antigravity"])
+def test_skill_target_can_use_custom_directory(settings, tmp_path, monkeypatch, target) -> None:
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     destination = tmp_path / "custom-skills"
-    result = invoke(settings, "install-skill", "--target", "codex", "--directory", str(destination))
+    result = invoke(settings, "install-skill", "--target", target, "--directory", str(destination))
     assert result.exit_code == 0, result.output
     assert (destination / "oracle/SKILL.md").is_file()
     assert not (tmp_path / ".agents").exists()
+    assert not (tmp_path / ".gemini").exists()
 
 
 def test_invalid_skill_target_does_not_install(settings, tmp_path, monkeypatch) -> None:

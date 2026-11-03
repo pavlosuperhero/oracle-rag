@@ -17,7 +17,9 @@ import uvicorn
 from pydantic import ValidationError
 from rich import box
 from rich.console import Console
-from rich.table import Table
+from rich.filesize import decimal
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.table import Column, Table
 from rich.text import Text
 from watchfiles import PythonFilter, run_process
 
@@ -25,6 +27,7 @@ from configs.configs import ConfigError, Settings, load_config
 from data.data import (
     DataError,
     Download,
+    DownloadProgress,
     Resource,
     add_resource,
     download_resources,
@@ -82,6 +85,7 @@ class SkillTarget(StrEnum):
     CODEX = "codex"
     COPILOT = "copilot"
     CLAUDE = "claude"
+    ANTIGRAVITY = "antigravity"
 
 
 class QueryFormat(StrEnum):
@@ -291,13 +295,17 @@ def data_list(
         total_files += total
         downloaded_files += downloaded
         status, style = (
-            ("Ready", "green") if downloaded == total else
-            ("Partial", "yellow") if downloaded else ("Missing", "dim")
+            ("Ready", "green")
+            if downloaded == total
+            else ("Partial", "yellow")
+            if downloaded
+            else ("Missing", "dim")
         )
         title = Text(resource["title"])
         title.truncate(title_width, overflow="ellipsis")
-        table.add_row(Text(resource["id"]), title,
-                      f"{downloaded}/{total}", Text(status, style=style))
+        table.add_row(
+            Text(resource["id"]), title, f"{downloaded}/{total}", Text(status, style=style)
+        )
     typer.echo(f"{len(resources)} sources | {downloaded_files}/{total_files} files downloaded")
     console.print(table)
     typer.echo("Download: oracle data download <source-id> (or --all)")
@@ -352,15 +360,62 @@ def data_download(
         bool, typer.Option("--all", help="Download every source entry.")
     ] = False,
     force: Annotated[bool, typer.Option(help="Re-download files already present.")] = False,
+    no_progress: Annotated[
+        bool, typer.Option("--no-progress", help="Hide download progress bars.")
+    ] = False,
 ) -> None:
     """Download all or selected source entries; no ingestion or embedding calls."""
     try:
-        paths = download_resources(
-            ctx.obj,
-            resource_ids or [],
-            all_sources=all_sources,
-            force=force,
-        )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn(
+                "{task.description}",
+                markup=False,
+                table_column=Column(max_width=24, no_wrap=True, overflow="ellipsis"),
+            ),
+            BarColumn(),
+            TextColumn("{task.fields[detail]}", markup=False),
+            TimeElapsedColumn(),
+            console=Console(stderr=True),
+            disable=no_progress,
+            redirect_stdout=False,
+        ) as display:
+            overall = display.add_task("Files", total=None, detail="Preparing…")
+            current = display.add_task("Current file", total=None, detail="Waiting…")
+            active: Path | None = None
+
+            def update(event: DownloadProgress) -> None:
+                nonlocal active
+                if active != event.path:
+                    display.reset(current, total=event.total)
+                    active = event.path
+                detail = f"{decimal(event.received)} / "
+                detail += decimal(event.total) if event.total is not None else "unknown size"
+                if event.status == "connecting":
+                    detail = "Connecting…"
+                elif event.status == "cached":
+                    detail = f"Cached ({decimal(event.received)})"
+                display.update(
+                    overall,
+                    total=event.total_files,
+                    completed=event.completed_files,
+                    detail=f"{event.completed_files}/{event.total_files} files",
+                )
+                display.update(
+                    current,
+                    description=f"{event.path.parent.name}/{event.path.name}",
+                    total=event.total,
+                    completed=event.received,
+                    detail=detail,
+                )
+
+            paths = download_resources(
+                ctx.obj,
+                resource_ids or [],
+                all_sources=all_sources,
+                force=force,
+                progress=update,
+            )
     except (DataError, OSError) as exc:
         fail(exc)
     for path in paths:
@@ -814,15 +869,19 @@ def install_skill(
 ) -> None:
     """Install the bundled oracle skill at user level."""
     host_directories = {
-        SkillTarget.CLAUDE: ".claude",
-        SkillTarget.COPILOT: ".copilot",
-        SkillTarget.CODEX: ".agents",
+        SkillTarget.CLAUDE: (".claude/skills",),
+        SkillTarget.COPILOT: (".copilot/skills",),
+        SkillTarget.CODEX: (".agents/skills",),
+        SkillTarget.ANTIGRAVITY: (
+            ".gemini/config/skills",
+            ".gemini/antigravity-cli/skills",
+        ),
     }
     selected = list(host_directories) if target is SkillTarget.ALL else [target]
     roots = (
         [directory.expanduser()]
         if directory
-        else [Path.home() / host_directories[host] / "skills" for host in selected]
+        else [Path.home() / relative for host in selected for relative in host_directories[host]]
     )
     destinations = [root / "oracle" / "SKILL.md" for root in roots]
     content = files("runtime").joinpath("skills", "oracle", "SKILL.md").read_bytes()
