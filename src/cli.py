@@ -1,0 +1,793 @@
+import asyncio
+import hashlib
+import ipaddress
+import json
+import logging
+import os
+import re
+import sys
+from enum import StrEnum
+from importlib.resources import files
+from pathlib import Path
+from typing import Annotated, NoReturn
+
+import httpx
+import typer
+import uvicorn
+from pydantic import ValidationError
+from watchfiles import PythonFilter, run_process
+
+from configs.configs import ConfigError, Settings, load_config
+from data.data import (
+    DataError,
+    Download,
+    Resource,
+    add_resource,
+    download_resources,
+    list_resources,
+    managed_documents,
+    remove_resource,
+)
+from data.index import MemoryIndex
+from documents.chunks import DocumentError, chunk_sections, extract
+from embeddings import EmbeddingError, create_embedder
+from evaluation.evaluation import EvaluationCase, evaluate_retrieval
+from models.models import Query, SearchResult, SourceCatalog
+from runtime.runtime import run_saved_server, setup_logging
+from runtime.server import create_app, create_mcp, remote_search, remote_sources
+from service.service import ServiceError, run_with_control, start_background, stop_background
+from storages.storage import StorageError
+
+app = typer.Typer(
+    no_args_is_help=True, help="File-backed document RAG, HTTP, and the oracle MCP server."
+)
+data_app = typer.Typer(
+    no_args_is_help=True, help="Manage sources.json entries and their downloads."
+)
+serve_app = typer.Typer(
+    invoke_without_command=True,
+    no_args_is_help=False,
+    help="Start and manage the Oracle HTTP/MCP server.",
+)
+app.add_typer(data_app, name="data")
+app.add_typer(serve_app, name="serve")
+Token = Annotated[str | None, typer.Option(envvar="ORACLE_TOKEN", help="Optional bearer token.")]
+Url = Annotated[
+    str | None, typer.Option(envvar="ORACLE_URL", help="URL of the running Oracle server.")
+]
+IndexFile = Annotated[
+    Path | None, typer.Option("--index", envvar="ORACLE_INDEX", help="Saved .npz index file.")
+]
+Region = Annotated[str | None, typer.Option(help="AWS region; otherwise use AWS config.")]
+Profile = Annotated[str | None, typer.Option(help="AWS profile; otherwise use AWS config.")]
+Host = Annotated[str | None, typer.Option(help="Bind address; otherwise use config.")]
+Port = Annotated[int | None, typer.Option(min=1, max=65535)]
+Recursive = Annotated[bool, typer.Option("--recursive", "-r", help="Include subfolders.")]
+logger = logging.getLogger(__name__)
+
+
+class LogLevel(StrEnum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+class SkillTarget(StrEnum):
+    ALL = "all"
+    CODEX = "codex"
+    COPILOT = "copilot"
+    CLAUDE = "claude"
+
+
+class QueryFormat(StrEnum):
+    JSON = "json"
+    TEXT = "text"
+
+
+def format_search_result(result: SearchResult) -> str:
+    lines = [f"Query: {result.query}", f"Results: {len(result.results)}"]
+    if result.message:
+        lines.append(result.message)
+    for number, passage in enumerate(result.results, 1):
+        lines.extend(
+            [
+                "",
+                f"{number}. {passage.title} (score: {passage.score:.4f})",
+                f"Citation: {passage.citation}",
+                f"Source: {passage.source}",
+                passage.text,
+            ]
+        )
+    return "\n".join(lines)
+
+
+def safe_console_text(value: str) -> str:
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        return value.encode(encoding, errors="backslashreplace").decode(encoding)
+    except LookupError:
+        return value.encode("ascii", errors="backslashreplace").decode("ascii")
+
+
+def load_evaluation_cases(path: Path) -> list[EvaluationCase]:
+    cases: list[EvaluationCase] = []
+    with path.open(encoding="utf-8") as dataset:
+        for line_number, line in enumerate(dataset, start=1):
+            if not line.strip():
+                continue
+            try:
+                payload = json.loads(line)
+                cases.append(EvaluationCase.model_validate(payload))
+            except (json.JSONDecodeError, ValidationError) as exc:
+                message = f"Invalid evaluation case at {path}:{line_number}: {exc}"
+                raise ValueError(message) from exc
+    return cases
+
+
+@app.callback()
+def configure(
+    ctx: typer.Context,
+    config: Annotated[
+        Path | None, typer.Option("--config", envvar="ORACLE_CONFIG", help="YAML settings file.")
+    ] = None,
+    log_level: Annotated[LogLevel | None, typer.Option(envvar="ORACLE_LOG_LEVEL")] = None,
+    log_file: Annotated[Path | None, typer.Option(envvar="ORACLE_LOG_FILE")] = None,
+) -> None:
+    """Logs go to stderr; optionally also write a rotating log file."""
+    try:
+        settings = load_config(config, initialize=True)
+        ctx.obj = settings
+        setup_logging(log_level.value if log_level else None, log_file, settings)
+    except (ConfigError, OSError, ValueError) as exc:
+        fail(exc)
+
+
+def fail(exc: Exception) -> NoReturn:
+    logger.error("%s", exc)
+    typer.echo(f"Error: {exc}", err=True)
+    raise typer.Exit(1) from exc
+
+
+def require_safe_bind(host: str, token: str | None) -> None:
+    try:
+        loopback = host == "localhost" or ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        loopback = False
+    if not loopback and not token:
+        raise ValueError("Binding outside loopback requires ORACLE_TOKEN or --token.")
+
+
+def ingest_index(
+    path: Path | None,
+    recursive: bool,
+    destination: Path,
+    region: str | None,
+    profile: str | None,
+    settings: Settings,
+) -> MemoryIndex:
+    index = MemoryIndex(
+        create_embedder(region=region, profile=profile, settings=settings), settings
+    )
+    if path is None:
+        sections = [section for file in managed_documents(settings) for section in extract(file)]
+        index.build(chunk_sections(sections, settings.chunking.size, settings.chunking.overlap))
+    else:
+        index.load(path, recursive)
+    index.save(destination)
+    return index
+
+
+def run_server(
+    index: MemoryIndex,
+    host: str,
+    port: int,
+    token: str | None,
+    service_state: Path | None = None,
+    service_token: str | None = None,
+) -> None:
+    """Run the server in this process, optionally with managed shutdown support."""
+    stats = index.stats
+    message = (
+        f"Ready: {stats.documents} documents, {stats.chunks} chunks. "
+        f"HTTP: http://{host}:{port}/docs  MCP: http://{host}:{port}/mcp/"
+    )
+    logger.info(message)
+    typer.echo(message, err=True)
+    server = uvicorn.Server(
+        uvicorn.Config(
+            create_app(index, token=token, host=host),
+            host=host,
+            port=port,
+            workers=1,
+            log_config=None,
+        )
+    )
+    if service_state is not None and service_token is not None:
+        run_with_control(server, service_state, service_token)
+    else:
+        server.run()
+
+
+@app.command()
+def ingest(
+    ctx: typer.Context,
+    path: Annotated[
+        Path | None, typer.Argument(help="File/folder; omit to ingest registered downloaded data.")
+    ] = None,
+    recursive: Recursive = False,
+    index: IndexFile = None,
+    region: Region = None,
+    profile: Profile = None,
+    src: Annotated[
+        Path | None, typer.Option("--src", help="Additional corpus: save a separate database file.")
+    ] = None,
+) -> None:
+    """Re-embed the corpus and atomically replace the saved database."""
+    settings: Settings = ctx.obj
+    try:
+        if path is not None and src is not None:
+            raise DataError("Choose a positional path or --src, not both.")
+        selected = src or path
+        destination = index or settings.index_path
+        if src is not None and index is None:
+            resolved = src.expanduser().resolve(strict=True)
+            name = re.sub(r"[^a-z0-9-]+", "-", resolved.stem.casefold()).strip("-")[:50] or "source"
+            identity = hashlib.sha256(os.path.normcase(str(resolved)).encode()).hexdigest()[:12]
+            destination = settings.index_path.parent / f"{name}-{identity}.npz"
+        destination = destination.expanduser().resolve()
+        loaded = ingest_index(selected, recursive, destination, region, profile, settings)
+    except (DataError, DocumentError, EmbeddingError, StorageError, OSError) as exc:
+        fail(exc)
+    typer.echo(
+        f"Saved {loaded.stats.documents} documents, {loaded.stats.chunks} chunks to {destination}"
+    )
+
+
+@data_app.command("list")
+def data_list(ctx: typer.Context) -> None:
+    """List source manifest entries and their download status; no embedding calls."""
+    try:
+        typer.echo(json.dumps(list_resources(ctx.obj), indent=2))
+    except (DataError, OSError) as exc:
+        fail(exc)
+
+
+@data_app.command("add")
+def data_add(
+    ctx: typer.Context,
+    resource_id: Annotated[str, typer.Argument(help="Unique lowercase source ID.")],
+    title: Annotated[str, typer.Option("--title", help="Resource title.")],
+    url: Annotated[str, typer.Option("--url", help="Direct document download URL.")],
+    filename: Annotated[str, typer.Option("--filename", help="Local document basename.")],
+    source: Annotated[str | None, typer.Option(help="Original landing page URL.")] = None,
+    author: Annotated[str | None, typer.Option()] = None,
+    license_name: Annotated[str | None, typer.Option("--license")] = None,
+) -> None:
+    """Add an entry to sources.json; do not download or ingest it."""
+    try:
+        add_resource(
+            ctx.obj,
+            Resource(
+                id=resource_id,
+                title=title,
+                source=source or url,
+                author=author,
+                license=license_name,
+                downloads=[Download(filename=filename, url=url)],
+            ),
+        )
+    except (DataError, ValidationError, OSError) as exc:
+        fail(exc)
+    typer.echo(f"Added source: {resource_id}")
+
+
+@data_app.command("remove")
+def data_remove(ctx: typer.Context, resource_id: str) -> None:
+    """Remove an entry from sources.json, not its cached files or the saved index."""
+    try:
+        remove_resource(ctx.obj, resource_id)
+    except (DataError, OSError) as exc:
+        fail(exc)
+    typer.echo(f"Removed source: {resource_id}. Run ingest to rebuild without it.")
+
+
+@data_app.command("download")
+def data_download(
+    ctx: typer.Context,
+    resource_ids: Annotated[
+        list[str] | None, typer.Argument(help="One or more IDs from data list.")
+    ] = None,
+    all_sources: Annotated[
+        bool, typer.Option("--all", help="Download every source entry.")
+    ] = False,
+    force: Annotated[bool, typer.Option(help="Re-download files already present.")] = False,
+) -> None:
+    """Download all or selected source entries; no ingestion or embedding calls."""
+    try:
+        paths = download_resources(
+            ctx.obj,
+            resource_ids or [],
+            all_sources=all_sources,
+            force=force,
+        )
+    except (DataError, OSError) as exc:
+        fail(exc)
+    for path in paths:
+        typer.echo(str(path))
+
+
+def _serve_command(
+    ctx: typer.Context,
+    index: Path | None,
+    region: str | None,
+    profile: str | None,
+    host: str | None,
+    port: int | None,
+    token: str | None,
+    debug: bool,
+    foreground: bool,
+) -> None:
+    settings: Settings = ctx.obj
+    host = host or settings.server.host
+    port = port or settings.server.port
+    service_state = os.environ.get("ORACLE_SERVICE_STATE")
+    service_token = os.environ.get("ORACLE_SERVICE_TOKEN")
+    if debug:
+        setup_logging("DEBUG", settings=settings)
+    try:
+        require_safe_bind(host, token)
+        if service_state and not service_token:
+            raise ServiceError("ORACLE_SERVICE_TOKEN is required for a managed Oracle server.")
+    except (EmbeddingError, StorageError, OSError, ValueError, ServiceError) as exc:
+        fail(exc)
+    if service_state:
+        try:
+            loaded = MemoryIndex(
+                create_embedder(region=region, profile=profile, settings=settings), settings
+            )
+            if index is not None:
+                loaded.restore(index)
+            else:
+                loaded.restore_all(settings.index_path.parent)
+        except (EmbeddingError, StorageError, OSError, ValueError) as exc:
+            fail(exc)
+        try:
+            run_server(loaded, host, port, token, Path(service_state), service_token)
+        except ServiceError as exc:
+            fail(exc)
+        return
+    if debug or foreground:
+        try:
+            loaded = MemoryIndex(
+                create_embedder(region=region, profile=profile, settings=settings), settings
+            )
+            if index is not None:
+                loaded.restore(index)
+            else:
+                loaded.restore_all(settings.index_path.parent)
+        except (EmbeddingError, StorageError, OSError, ValueError) as exc:
+            fail(exc)
+        run_server(loaded, host, port, token)
+        return
+    command = [sys.executable, "-m", "cli"]
+    root_params = ctx.find_root().params
+    for name, option in (
+        ("config", "--config"),
+        ("log_level", "--log-level"),
+        ("log_file", "--log-file"),
+    ):
+        value = root_params.get(name)
+        if value is not None:
+            value = getattr(value, "value", value)
+            command.extend((option, str(value)))
+    command.extend(("serve", "--foreground"))
+    for option, value in (
+        ("--index", index),
+        ("--region", region),
+        ("--profile", profile),
+        ("--host", host),
+        ("--port", port),
+    ):
+        if value is not None:
+            command.extend((option, str(value)))
+    environment = os.environ.copy()
+    if token is not None:
+        environment["ORACLE_TOKEN"] = token
+    log_override = root_params.get("log_file")
+    log_path = (
+        Path(log_override).expanduser()
+        if log_override is not None
+        else settings.log_path or settings.index_path.parent / "oracle-serve.log"
+    )
+    try:
+        start_background(command, environment, settings, host, port, log_path)
+    except (OSError, ServiceError) as exc:
+        fail(exc)
+    typer.echo(f"Oracle server started at http://{host}:{port}. Logs: {log_path}")
+
+
+@serve_app.callback()
+def serve(
+    ctx: typer.Context,
+    index: IndexFile = None,
+    region: Region = None,
+    profile: Profile = None,
+    host: Host = None,
+    port: Port = None,
+    token: Token = None,
+    debug: Annotated[
+        bool, typer.Option("--debug", help="Run in the terminal with DEBUG logs.")
+    ] = False,
+    foreground: Annotated[
+        bool, typer.Option("--foreground", help="Run in the terminal with configured log level.")
+    ] = False,
+) -> None:
+    """Start the server detached; use --debug or --foreground to stay in this terminal."""
+    if ctx.invoked_subcommand is None:
+        _serve_command(ctx, index, region, profile, host, port, token, debug, foreground)
+
+
+@serve_app.command("start")
+def serve_start(
+    ctx: typer.Context,
+    index: IndexFile = None,
+    region: Region = None,
+    profile: Profile = None,
+    host: Host = None,
+    port: Port = None,
+    token: Token = None,
+    debug: Annotated[
+        bool, typer.Option("--debug", help="Run in the terminal with DEBUG logs.")
+    ] = False,
+    foreground: Annotated[
+        bool, typer.Option("--foreground", help="Run in the terminal with configured log level.")
+    ] = False,
+) -> None:
+    """Start the server; detached unless --debug or --foreground is specified."""
+    _serve_command(ctx, index, region, profile, host, port, token, debug, foreground)
+
+
+@serve_app.command("stop")
+def serve_stop(
+    ctx: typer.Context,
+    host: Host = None,
+    port: Port = None,
+) -> None:
+    """Gracefully stop the detached server for the selected host and port."""
+    settings: Settings = ctx.obj
+    host = host or settings.server.host
+    port = port or settings.server.port
+    try:
+        stopped = stop_background(settings, host, port)
+    except ServiceError as exc:
+        fail(exc)
+    typer.echo("Oracle server stopped." if stopped else "Oracle server is not running.")
+
+
+@serve_app.command("restart")
+def serve_restart(
+    ctx: typer.Context,
+    index: IndexFile = None,
+    region: Region = None,
+    profile: Profile = None,
+    host: Host = None,
+    port: Port = None,
+    token: Token = None,
+    debug: Annotated[
+        bool, typer.Option("--debug", help="Run in the terminal with DEBUG logs.")
+    ] = False,
+    foreground: Annotated[
+        bool, typer.Option("--foreground", help="Run in the terminal with configured log level.")
+    ] = False,
+) -> None:
+    """Restart the server, detaching unless --debug or --foreground is specified."""
+    settings: Settings = ctx.obj
+    selected_host = host or settings.server.host
+    selected_port = port or settings.server.port
+    try:
+        stop_background(settings, selected_host, selected_port)
+    except ServiceError as exc:
+        fail(exc)
+    _serve_command(ctx, index, region, profile, host, port, token, debug, foreground)
+
+
+@app.command()
+def dev(
+    ctx: typer.Context,
+    index: IndexFile = None,
+    region: Region = None,
+    profile: Profile = None,
+    host: Host = None,
+    port: Port = None,
+    token: Token = None,
+    reload_dir: Annotated[
+        Path | None, typer.Option(help="Python source folder to watch for code changes.")
+    ] = None,
+) -> None:
+    """Serve the saved index with Python-code reload; never re-ingest on reload."""
+    settings: Settings = ctx.obj
+    host = host or settings.server.host
+    port = port or settings.server.port
+    destination = (index or settings.index_path).expanduser().resolve()
+    directory = (reload_dir or Path(__file__).parent).expanduser().resolve()
+    try:
+        require_safe_bind(host, token)
+        if not directory.is_dir():
+            raise ValueError(f"Reload directory does not exist: {directory}")
+        loaded = MemoryIndex(
+            create_embedder(region=region, profile=profile, settings=settings), settings
+        )
+        if index is not None:
+            loaded.restore(destination)
+        else:
+            loaded.restore_all(settings.index_path.parent)
+    except (EmbeddingError, StorageError, OSError, ValueError) as exc:
+        fail(exc)
+    environment: dict[str, str | None] = {
+        "ORACLE_INDEX": str(destination) if index is not None else None,
+        "ORACLE_CONFIG": str(settings.path),
+        "ORACLE_HOST": host,
+        "ORACLE_AWS_REGION": region,
+        "ORACLE_AWS_PROFILE": profile,
+        "ORACLE_TOKEN": token,
+        "ORACLE_LOG_LEVEL": logging.getLevelName(logging.getLogger().level),
+    }
+    for handler in logging.getLogger().handlers[:]:
+        if isinstance(handler, logging.FileHandler):
+            environment["ORACLE_LOG_FILE"] = handler.baseFilename
+            # Only the worker owns the rotating file, avoiding Windows rename locks.
+            logging.getLogger().removeHandler(handler)
+            handler.close()
+    original = {name: os.environ.get(name) for name in environment}
+    try:
+        for name, value in environment.items():
+            if value is not None:
+                os.environ[name] = value
+            else:
+                os.environ.pop(name, None)
+        run_process(
+            directory,
+            target=run_saved_server,
+            args=(host, port),
+            watch_filter=PythonFilter(),
+            sigint_timeout=settings.development.shutdown_timeout,
+            sigkill_timeout=settings.development.shutdown_timeout,
+        )
+    finally:
+        for name, value in original.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
+@app.command()
+def rag(
+    ctx: typer.Context,
+    path: Annotated[Path, typer.Argument(help="A document or folder to index.")],
+    recursive: Recursive = False,
+    region: Region = None,
+    profile: Profile = None,
+    host: Host = None,
+    port: Port = None,
+    token: Token = None,
+    index: IndexFile = None,
+) -> None:
+    """Compatibility shortcut: ingest, save, then serve the shared index."""
+    settings: Settings = ctx.obj
+    host = host or settings.server.host
+    port = port or settings.server.port
+    try:
+        require_safe_bind(host, token)
+        loaded = ingest_index(
+            path,
+            recursive,
+            (index or settings.index_path).expanduser().resolve(),
+            region,
+            profile,
+            settings,
+        )
+        if index is None:
+            loaded.restore_all(settings.index_path.parent)
+    except (DocumentError, EmbeddingError, StorageError, OSError, ValueError) as exc:
+        fail(exc)
+    run_server(loaded, host, port, token)
+
+
+def clean_targets(settings: Settings, all_data: bool) -> list[Path]:
+    roots = [settings.index_path.parent]
+    if all_data:
+        roots.append(settings.data_path)
+    forbidden = {Path.home().resolve(), Path.cwd().resolve(), Path(Path.cwd().anchor).resolve()}
+    targets: list[Path] = []
+    for root in roots:
+        resolved_root = root.resolve()
+        if (
+            resolved_root in forbidden
+            or any(path.is_relative_to(resolved_root) for path in forbidden)
+            or settings.path.is_relative_to(resolved_root)
+            or root.is_symlink()
+        ):
+            raise DataError(f"Refusing to clean an unsafe directory: {root}")
+        if not root.exists():
+            continue
+        if root == settings.index_path.parent:
+            candidates = list(root.glob("*.npz"))
+        else:
+            candidates = []
+            for directory, subdirectories, names in os.walk(root, followlinks=False):
+                for name in subdirectories:
+                    if (Path(directory) / name).is_symlink():
+                        raise DataError(f"Refusing to clean a directory with symlinks: {root}")
+                candidates.extend(Path(directory) / name for name in names)
+        for path in candidates:
+            if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
+                raise DataError(f"Refusing to remove unsafe target: {path}")
+            if path.is_file():
+                targets.append(path.resolve())
+    return sorted(set(targets))
+
+
+@app.command()
+def clean(
+    ctx: typer.Context,
+    all_data: Annotated[
+        bool, typer.Option("--all", help="Also delete managed data, including sources.json.")
+    ] = False,
+) -> None:
+    """Confirm before deleting database files; --all also clears managed data files."""
+    settings: Settings = ctx.obj
+    try:
+        targets = clean_targets(settings, all_data)
+        typer.echo(f"Database directory: {settings.index_path.parent}")
+        if all_data:
+            typer.echo(f"Data directory: {settings.data_path} (including sources.json)")
+        typer.echo(f"Files selected for deletion: {len(targets)}")
+        if not targets:
+            typer.echo("Nothing to clean.")
+            return
+        if not typer.confirm(
+            "Are you sure you want to clean the database" + (" and data" if all_data else "") + "?"
+        ):
+            typer.echo("Cancelled; no files deleted.")
+            return
+        for path in targets:
+            path.unlink()
+            logger.info("Deleted managed file: %s", path)
+    except (DataError, OSError) as exc:
+        fail(exc)
+    typer.echo(f"Deleted {len(targets)} files. Restart the server to unload old data.")
+
+
+@app.command()
+def query(
+    ctx: typer.Context,
+    text: Annotated[str, typer.Argument(help="Question or search text.")],
+    top_k: Annotated[int | None, typer.Option(min=1, max=20)] = None,
+    source: Annotated[str | None, typer.Option(help="Filter by source path substring.")] = None,
+    output_format: Annotated[
+        QueryFormat, typer.Option("--format", help="Output format: JSON or readable text.")
+    ] = QueryFormat.JSON,
+    url: Url = None,
+    token: Token = None,
+) -> None:
+    """Retrieve cited passages from a running server."""
+    settings: Settings = ctx.obj
+    try:
+        request = Query(query=text, top_k=top_k or settings.retrieval.top_k, source=source)
+        result = asyncio.run(remote_search(request, url, token, settings))
+    except (httpx.HTTPError, ValidationError) as exc:
+        fail(exc)
+    if output_format is QueryFormat.JSON:
+        output = json.dumps(result.model_dump(mode="json"), ensure_ascii=True, indent=2)
+    else:
+        output = safe_console_text(format_search_result(result))
+    typer.echo(output)
+
+
+@app.command()
+def evaluate(
+    ctx: typer.Context,
+    dataset: Annotated[
+        Path,
+        typer.Argument(help="UTF-8 JSONL dataset of questions and expected sources."),
+    ],
+    k: Annotated[
+        int | None,
+        typer.Option("--k", min=1, max=20, help="Retrieval cutoff; defaults to configured top-k."),
+    ] = None,
+    url: Url = None,
+    token: Token = None,
+) -> None:
+    """Measure retrieval quality on JSONL cases using the configured embedder."""
+    settings: Settings = ctx.obj
+    try:
+        cases = load_evaluation_cases(dataset)
+        cutoff = k or settings.retrieval.top_k
+        results = [
+            asyncio.run(
+                remote_search(Query(query=case.question, top_k=cutoff), url, token, settings)
+            )
+            for case in cases
+        ]
+        report = evaluate_retrieval(cases, results, k=cutoff)
+    except (OSError, ValueError, httpx.HTTPError, ValidationError) as exc:
+        fail(exc)
+    typer.echo(json.dumps(report.model_dump(mode="json"), ensure_ascii=True, indent=2))
+
+
+@app.command()
+def sources(ctx: typer.Context, url: Url = None, token: Token = None) -> None:
+    """List books and documents in the running index without embedding requests."""
+    try:
+        catalog = asyncio.run(remote_sources(url, token, ctx.obj))
+    except (httpx.HTTPError, ValidationError) as exc:
+        fail(exc)
+    typer.echo(catalog.model_dump_json(indent=2))
+
+
+@app.command()
+def mcp(ctx: typer.Context, url: Url = None, token: Token = None) -> None:
+    """Run a stdio MCP adapter to the existing server, without rebuilding its index."""
+
+    async def search(request: Query) -> SearchResult:
+        return await remote_search(request, url, token, ctx.obj)
+
+    async def list_sources() -> SourceCatalog:
+        return await remote_sources(url, token, ctx.obj)
+
+    create_mcp(search, list_sources, settings=ctx.obj).run(transport="stdio")
+
+
+@app.command("config")
+def show_config(ctx: typer.Context) -> None:
+    """Initialize user settings if missing and show configuration/index locations."""
+    settings: Settings = ctx.obj
+    typer.echo(f"Configuration: {settings.path}")
+    typer.echo(f"Vector database: {settings.index_path}")
+    typer.echo(settings.model_dump_json(indent=2))
+
+
+@app.command("install-skill")
+def install_skill(
+    target: Annotated[
+        SkillTarget, typer.Option(help="Assistant to install for; codex includes ChatGPT desktop.")
+    ] = SkillTarget.ALL,
+    directory: Annotated[
+        Path | None,
+        typer.Option(help="Custom skill root; overrides the selected target's default directory."),
+    ] = None,
+    force: Annotated[
+        bool, typer.Option(help="Replace an existing, different oracle skill.")
+    ] = False,
+) -> None:
+    """Install the bundled oracle skill at user level."""
+    host_directories = {
+        SkillTarget.CLAUDE: ".claude",
+        SkillTarget.COPILOT: ".copilot",
+        SkillTarget.CODEX: ".agents",
+    }
+    selected = list(host_directories) if target is SkillTarget.ALL else [target]
+    roots = (
+        [directory.expanduser()]
+        if directory
+        else [Path.home() / host_directories[host] / "skills" for host in selected]
+    )
+    destinations = [root / "oracle" / "SKILL.md" for root in roots]
+    content = files("runtime").joinpath("skills", "oracle", "SKILL.md").read_bytes()
+    try:
+        for destination in destinations:
+            if destination.exists() and destination.read_bytes() != content and not force:
+                raise FileExistsError(f"{destination} exists; use --force to replace it.")
+        for destination in destinations:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+    except OSError as exc:
+        fail(exc)
+    for destination in destinations:
+        typer.echo(f"Installed skill: {destination.resolve()}")
+
+
+if __name__ == "__main__":
+    app()

@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
-from configs.configs import load_config
+from configs.configs import Settings, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -118,9 +118,7 @@ def extract(path: Path) -> list[Section]:
             if match:
                 title = f"{path.stem}: {match.group(1).strip()}"
         sections = (
-            [Section(path, title, text, page=None, line_citations=not html)]
-            if text.strip()
-            else []
+            [Section(path, title, text, page=None, line_citations=not html)] if text.strip() else []
         )
     return sections
 
@@ -188,3 +186,13 @@ def chunk_sections(
                 break
             start = end - overlap
     return chunks
+
+
+def load_chunks(
+    path: Path, recursive: bool = False, settings: Settings | None = None
+) -> list[Chunk]:
+    config = (settings or load_config()).chunking
+    sections = [section for file in discover(path, recursive) for section in extract(file)]
+    if not sections:
+        raise DocumentError(f"No readable document text found in {path}")
+    return chunk_sections(sections, config.size, config.overlap)

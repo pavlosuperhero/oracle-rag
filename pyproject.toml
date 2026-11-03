@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name = "oracle-rag"
 version = "0.1.0"
-description = "In-memory hybrid dociment retrieaval with Amazon bedrock, HTTP, MCP and openai api"
+description = "In-memory hybrid document retrieval with Amazon bedrock, HTTP, MCP and openai api"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -28,7 +28,7 @@ dependencies = [
 
 
 [project.scripts]
-oracle = "oracle_rag.cli:app"
+oracle = "cli:app"
 
 [dependency-groups]
 dev = [
@@ -41,7 +41,13 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/oracle_rag"]
+only-include = [
+    "src/configs", "src/data", "src/documents", "src/embeddings",
+    "src/evaluation", "src/models", "src/runtime", "src/service", "src/storages",
+    "src/cli.py",
+]
+
+sources = ["src"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/tests", "/pyproject.toml", "/uv.lock", "/README.md"]
@@ -50,16 +56,16 @@ include = ["/src", "/tests", "/pyproject.toml", "/uv.lock", "/README.md"]
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py314"
 line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 strict = true
-files = ["src/oracle_rag"]
+files = ["src"]
 
 [[tool.mypy.overrides]]
 module = ["rank_bm25"]

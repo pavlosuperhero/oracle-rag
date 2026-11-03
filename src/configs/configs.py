@@ -10,13 +10,15 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 class ConfigError(ValueError):
     pass
 
+
 def default_config_path() -> Path:
     return Path.home() / ".config" / "oracle" / "configs" / "config.yaml"
+
 
 class ConfigSection(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    
+
 class AiProviderConfig(ConfigSection):
     provider: Literal["Bedrock", "OpenAI"]
     model: Literal["amazon.titan-embed-text-v2:0", "text-embedding-bge-large-en-v1.5"]
@@ -31,7 +33,7 @@ class AiProviderConfig(ConfigSection):
     progress_interval: int = Field(gt=0)
 
     @model_validator(mode="after")
-    def validate_base_url(self) -> "AiProviderConfig":
+    def validate_base_url(self) -> AiProviderConfig:
         if self.base_url is not None and not self.base_url.startswith(("http://", "https://")):
             raise ValueError("Provider base_url must use http:// or https://")
         return self
@@ -48,18 +50,24 @@ class AiProviderConfig(ConfigSection):
 class ChunkingConfig(ConfigSection):
     size: int = Field(ge=100, le=10000)
     ovelap: int = Field(ge=0)
-    
+
     @model_validator(mode="after")
-    def validate_overlap(self) -> "ChunkingConfig":
+    def validate_overlap(self) -> ChunkingConfig:
         if self.ovelap >= self.size // 2:
             raise ValueError("Chunk overlap must be below half the chunk size")
         return self
+
+    @property
+    def overlap(self) -> int:
+        return self.ovelap
+
 
 class RetrievalConfig(ConfigSection):
     top_k: int = Field(ge=1, le=20)
     candidates: int = Field(ge=1)
     candidate_multiplier: int = Field(ge=1)
     rrf_constant: int = Field(ge=1)
+
 
 class ServerConfig(ConfigSection):
     host: str = Field(min_length=1)
@@ -70,10 +78,14 @@ class ServerConfig(ConfigSection):
     catalog_timeout: int = Field(gt=0)
 
     @model_validator(mode="after")
-    def validate_url(self) -> "ServerConfig":
+    def validate_url(self) -> ServerConfig:
         if self.client_url is not None and not self.client_url.startswith(("http://", "https://")):
             raise ValueError("Client URL must use http:// https://")
         return self
+
+    @property
+    def connect_timeout(self) -> int:
+        return self.connection_timeout
 
     @property
     def url(self) -> str:
@@ -88,12 +100,18 @@ class ServerConfig(ConfigSection):
 class StorageConfig(ConfigSection):
     index: str = Field(min_length=1)
 
+
 class DataConfig(ConfigSection):
     directory: str = Field(min_length=1)
     manifest: str = Field(min_length=1)
     download_timout: int = Field(gt=0)
     max_download_bytes: int = Field(gt=0)
-    
+
+    @property
+    def download_timeout(self) -> int:
+        return self.download_timout
+
+
 class LiggingConfig(ConfigSection):
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
     file: str | None
@@ -101,8 +119,14 @@ class LiggingConfig(ConfigSection):
     backup_count: int = Field(ge=1)
     format: str = Field(min_length=1)
 
+
 class DevelopmentConfig(ConfigSection):
     shutdown_timout: int = Field(gt=0)
+
+    @property
+    def shutdown_timeout(self) -> int:
+        return self.shutdown_timout
+
 
 class Settings(ConfigSection):
     provider: AiProviderConfig
@@ -114,6 +138,7 @@ class Settings(ConfigSection):
     logging: LiggingConfig
     development: DevelopmentConfig
     _path: Path = PrivateAttr(default_factory=default_config_path)
+
     @property
     def path(self) -> Path:
         return self._path
@@ -149,9 +174,9 @@ class Settings(ConfigSection):
 
 def load_config(path: Path | None = None, *, initialize: bool = False) -> Settings:
     selected = path or (
-            Path(os.environ["ORACLE_CONFIG"]) 
-            if os.environ.get("ORACLE_CONFIG") 
-            else default_config_path()
+        Path(os.environ["ORACLE_CONFIG"])
+        if os.environ.get("ORACLE_CONFIG")
+        else default_config_path()
     )
     selected = selected.expanduser().resolve()
     explicit = path is not None or bool(os.environ.get("ORACLE_CONFIG"))
@@ -172,7 +197,7 @@ def load_config(path: Path | None = None, *, initialize: bool = False) -> Settin
         if selected.exists():
             content = selected.read_text(encoding="utf-8")
         defautls = yaml.safe_load(
-                files("configs").joinpath("configs.yaml").read_text(encoding="utf-8")
+            files("configs").joinpath("configs.yaml").read_text(encoding="utf-8")
         )
         supplied = yaml.safe_load(content)
         if not isinstance(supplied, dict):
@@ -187,4 +212,3 @@ def load_config(path: Path | None = None, *, initialize: bool = False) -> Settin
         raise ConfigError(f"Cannot load configuration from {selected}: {error}") from error
     settings._path = selected
     return settings
-

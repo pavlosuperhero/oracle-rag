@@ -1,3 +1,4 @@
+from configs.configs import Settings, load_config
 from embeddings.bedrock import BedrockEmbedding, EmbeddingResponse
 from embeddings.embeddings import (
     BaseEmbedding,
@@ -23,6 +24,20 @@ __all__ = [
     "OpenAIEmbeddingData",
     "OpenAIEmbeddingResponse",
     "OpenAIUsage",
+    "create_embedder",
     "normalize",
     "validate_embedding_input",
 ]
+
+
+def create_embedder(
+    settings: Settings | None = None,
+    *,
+    region: str | None = None,
+    profile: str | None = None,
+) -> Embedder:
+    """Select the embedding backend configured for both ingestion and queries."""
+    settings = settings or load_config()
+    if settings.provider.provider == "Bedrock":
+        return BedrockEmbedding(region=region, profile=profile, settings=settings)
+    return OpenAIEmbedding(settings=settings)

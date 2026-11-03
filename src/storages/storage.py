@@ -1,4 +1,6 @@
 import logging
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from zipfile import BadZipFile
@@ -34,7 +36,7 @@ class StoredChunk(BaseModel):
     line_end: int | None = Field(ge=1)
 
     @model_validator(mode="after")
-    def validate_citation(self) -> "StoredChunk":
+    def validate_citation(self) -> StoredChunk:
         if not Path(self.source).is_absolute():
             raise ValueError("Stored source path must be absolute")
         if not self.text.strip():
@@ -100,3 +102,44 @@ def read_index(path: Path, model: str, dimensions: int) -> StoredIndex:
     return StoredIndex(
         model, dimensions, tuple(chunk.chunk() for chunk in manifest.chunks), vectors
     )
+
+
+def write_index(path: Path, index: StoredIndex) -> Path:
+    path = path.expanduser().resolve()
+    try:
+        vectors = normalize(index.vectors, len(index.chunks), index.dimensions)
+        manifest = Manifest(
+            version=1,
+            model=index.model,
+            dimensions=index.dimensions,
+            chunks=[
+                StoredChunk(
+                    id=chunk.id,
+                    source=str(chunk.source.resolve()),
+                    title=chunk.title,
+                    text=chunk.text,
+                    page=chunk.page,
+                    line_start=chunk.line_start,
+                    line_end=chunk.line_end,
+                )
+                for chunk in index.chunks
+            ],
+        )
+        if len({chunk.id for chunk in manifest.chunks}) != len(manifest.chunks):
+            raise StorageError("Saved index contains duplicate chunk IDs")
+        metadata = np.frombuffer(manifest.model_dump_json().encode("utf-8"), dtype=np.uint8)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            dir=path.parent, prefix=f".{path.stem}-", suffix=".npz", delete=False
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+        try:
+            np.savez(temp_path, metadata=metadata, vectors=vectors)
+            os.replace(temp_path, path)
+        except BaseException:
+            temp_path.unlink(missing_ok=True)
+            raise
+    except (OSError, ValueError, ValidationError, EmbeddingError) as exc:
+        raise StorageError(f"Cannot write index {path}: {exc}") from exc
+    logger.info("Saved index file %s (%d passages)", path, len(index.chunks))
+    return path
