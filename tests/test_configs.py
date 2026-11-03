@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any
 
@@ -121,6 +122,38 @@ def test_load_config_initialize_writes_default_file(
     assert written["provider"]["model"] == "text-embedding-bge-large-en-v1.5"
     assert written["provider"]["base_url"] == "http://127.0.0.1:1234/v1"
     assert written["server"]["port"] == 8742
+    assert settings.data_path.is_dir()
+    assert settings.index_path.parent.is_dir()
+    assert not settings.index_path.exists()
+    catalog = json.loads(settings.manifest_path.read_text())
+    expected = json.loads((Path(__file__).resolve().parents[1] / "sources.json").read_text())
+    assert catalog == expected
+
+
+def test_initialize_repairs_existing_settings_and_preserves_catalog(monkeypatch, tmp_path):
+    monkeypatch.delenv("ORACLE_CONFIG", raising=False)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    settings = load_config(initialize=True)
+    settings.manifest_path.unlink()
+    settings.data_path.rmdir()
+    settings.index_path.parent.rmdir()
+    load_config(initialize=True)
+    assert settings.data_path.is_dir()
+    assert settings.index_path.parent.is_dir()
+    original = '{"resources": []}\n'
+    settings.manifest_path.write_text(original)
+    load_config(initialize=True)
+    assert settings.manifest_path.read_text() == original
+
+
+def test_custom_config_initializes_empty_catalog(settings):
+    settings.data.directory = "custom-data"
+    settings.data.manifest = "custom-data/sources.json"
+    settings.path.write_text(settings.model_dump_json())
+    loaded = load_config(settings.path, initialize=True)
+    assert loaded.data_path.is_dir()
+    assert loaded.index_path.parent.is_dir()
+    assert json.loads(loaded.manifest_path.read_text()) == {"resources": []}
 
 
 def test_load_config_merges_partial_overrides_from_explicit_path(tmp_path: Path) -> None:

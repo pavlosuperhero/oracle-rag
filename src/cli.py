@@ -15,6 +15,10 @@ import httpx
 import typer
 import uvicorn
 from pydantic import ValidationError
+from rich import box
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
 from watchfiles import PythonFilter, run_process
 
 from configs.configs import ConfigError, Settings, load_config
@@ -135,12 +139,21 @@ def configure(
     log_file: Annotated[Path | None, typer.Option(envvar="ORACLE_LOG_FILE")] = None,
 ) -> None:
     """Logs go to stderr; optionally also write a rotating log file."""
+    if ctx.invoked_subcommand == "help":
+        return
     try:
         settings = load_config(config, initialize=True)
         ctx.obj = settings
         setup_logging(log_level.value if log_level else None, log_file, settings)
     except (ConfigError, OSError, ValueError) as exc:
         fail(exc)
+
+
+@app.command("help")
+def show_help(ctx: typer.Context) -> None:
+    """Show the command reference (equivalent to --help)."""
+    if ctx.parent is not None:
+        typer.echo(ctx.parent.get_help())
 
 
 def fail(exc: Exception) -> NoReturn:
@@ -245,12 +258,49 @@ def ingest(
 
 
 @data_app.command("list")
-def data_list(ctx: typer.Context) -> None:
-    """List source manifest entries and their download status; no embedding calls."""
+def data_list(
+    ctx: typer.Context,
+    output_format: Annotated[
+        QueryFormat, typer.Option("--format", help="Output format: readable text or JSON.")
+    ] = QueryFormat.TEXT,
+) -> None:
+    """Show registered sources and download progress; no embedding calls."""
     try:
-        typer.echo(json.dumps(list_resources(ctx.obj), indent=2))
+        resources = list_resources(ctx.obj)
     except (DataError, OSError) as exc:
         fail(exc)
+    if output_format is QueryFormat.JSON:
+        typer.echo(json.dumps(resources, indent=2))
+        return
+    if not resources:
+        typer.echo("No sources registered. Run oracle data add --help to add one.")
+        return
+    console = Console()
+    id_width = max(len(resource["id"]) for resource in resources)
+    title_width = max(8, console.width - id_width - 29)
+    table = Table(box=box.SIMPLE_HEAD, show_edge=False, padding=(0, 1))
+    table.add_column("Source ID", style="cyan", no_wrap=True, min_width=id_width)
+    table.add_column("Title", width=title_width, no_wrap=True, overflow="ellipsis")
+    table.add_column("Downloaded", justify="right", no_wrap=True, min_width=10)
+    table.add_column("Status", no_wrap=True, min_width=7)
+    total_files = downloaded_files = 0
+    for resource in resources:
+        downloads = resource["downloads"]
+        total = len(downloads)
+        downloaded = sum(bool(download["downloaded"]) for download in downloads)
+        total_files += total
+        downloaded_files += downloaded
+        status, style = (
+            ("Ready", "green") if downloaded == total else
+            ("Partial", "yellow") if downloaded else ("Missing", "dim")
+        )
+        title = Text(resource["title"])
+        title.truncate(title_width, overflow="ellipsis")
+        table.add_row(Text(resource["id"]), title,
+                      f"{downloaded}/{total}", Text(status, style=style))
+    typer.echo(f"{len(resources)} sources | {downloaded_files}/{total_files} files downloaded")
+    console.print(table)
+    typer.echo("Download: oracle data download <source-id> (or --all)")
 
 
 @data_app.command("add")

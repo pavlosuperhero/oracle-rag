@@ -25,6 +25,12 @@ def test_cli_help_lists_commands() -> None:
         assert command in result.output
 
 
+def test_help_command_works_even_with_invalid_config(tmp_path: Path) -> None:
+    result = runner.invoke(cli.app, ["--config", str(tmp_path / "missing.yaml"), "help"])
+    assert result.exit_code == 0, result.output
+    assert "ingest" in result.output
+
+
 def test_config_and_invalid_config(settings: Settings, tmp_path: Path) -> None:
     result = invoke(settings, "config")
     assert result.exit_code == 0, result.output

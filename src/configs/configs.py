@@ -172,6 +172,30 @@ class Settings(ConfigSection):
         return self.resolve_path(self.logging.file) if self.logging.file else None
 
 
+def initialize_layout(settings: Settings) -> None:
+    """Create storage directories and seed a missing default source catalog."""
+    settings.index_path.parent.mkdir(parents=True, exist_ok=True)
+    settings.data_path.mkdir(parents=True, exist_ok=True)
+    manifest = settings.manifest_path
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    if manifest.exists():
+        return
+    content = '{"resources": []}\n'
+    if settings.path == default_config_path().resolve():
+        try:
+            content = files("configs").joinpath("sources.json").read_text(encoding="utf-8")
+        except FileNotFoundError:
+            # Editable checkouts use the same canonical catalog as the wheel build.
+            content = (Path(__file__).resolve().parents[2] / "sources.json").read_text(
+                encoding="utf-8"
+            )
+    try:
+        with manifest.open("x", encoding="utf-8") as file:
+            file.write(content)
+    except FileExistsError:
+        pass
+
+
 def load_config(path: Path | None = None, *, initialize: bool = False) -> Settings:
     selected = path or (
         Path(os.environ["ORACLE_CONFIG"])
@@ -211,4 +235,9 @@ def load_config(path: Path | None = None, *, initialize: bool = False) -> Settin
     except (OSError, yaml.YAMLError, ValueError) as error:
         raise ConfigError(f"Cannot load configuration from {selected}: {error}") from error
     settings._path = selected
+    if initialize:
+        try:
+            initialize_layout(settings)
+        except OSError as error:
+            raise ConfigError(f"Cannot initialize Oracle storage: {error}") from error
     return settings
