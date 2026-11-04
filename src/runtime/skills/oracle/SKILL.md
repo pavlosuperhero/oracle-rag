@@ -176,7 +176,11 @@ oracle dev --profile default
 
 
 ingest writes passages, metadata, and embeddings atomically to
-~/.config/oracle/vector_database/index.npz and exits. Use --index PATH or ORACLE_INDEX consistently
+~/.config/oracle/vector_database/index.npz and exits. In an interactive terminal,
+ingest shows a live 4-stage progress panel on stderr and writes INFO/DEBUG logs
+to a rotating file (~/.config/oracle/logs/oracle-ingest.log by default); use
+--no-progress for plain line output without escape sequences, or --debug to
+stream logs in the terminal. Use --index PATH or ORACLE_INDEX consistently
 to select a different file. Each ingestion re-embeds and replaces its database;
 old embeddings are not reused. Without a path, ingest uses registered downloaded
 files in ~/.config/oracle/data/. --src PATH creates a database file
@@ -240,14 +244,17 @@ are errors, never silently ignored. No credentials or bearer tokens belong in YA
 Logging
 
 Use oracle --log-file PATH serve to write rotating logs. Detached serve
-uses the configured log file or creates oracle-serve.log; use oracle serve --debug to keep detailed logs in the terminal, or --foreground for the
+uses the configured log file or creates oracle-serve.log; ingest writes to the
+configured log file or ~/.config/oracle/logs/oracle-ingest.log while keeping
+terminal output limited to warnings, errors, and progress unless --debug is set.
+Use oracle serve --debug to keep detailed logs in the terminal, or --foreground for the
 configured log level. Set ORACLE_LOG_FILE/ORACLE_LOG_LEVEL as alternatives.
 Global options precede the command.
-INFO logs timestamps, model ID, region, Bedrock input-token usage, dimensions,
-download/database events, and operation timings. Output tokens are n/a: embeddings do not
-generate text. DEBUG additionally logs sources, passages, embedding inputs,
-and queries; these logs can contain confidential material. Do not enable DEBUG
-without permission when working with private documents.
+INFO logs timestamps, model ID, region, embedding stage token/retry summaries, dimensions,
+download/database events, and operation timings. Per-passage embedding responses,
+sources, passages, embedding inputs, and queries are logged at DEBUG; these logs
+can contain confidential material. Output tokens are n/a: embeddings do not
+generate text. Do not enable DEBUG without permission when working with private documents.
 
 Procedure
 

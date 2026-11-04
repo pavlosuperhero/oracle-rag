@@ -6,6 +6,21 @@ import pytest
 from configs.configs import Settings, load_config
 from data.index import MemoryIndex
 from documents.chunks import Chunk
+from runtime.progress import IngestProgress, StageAdvanced, StageFinished, StageStarted
+
+
+class RecordingProgress:
+    def __init__(self) -> None:
+        self.events: list[StageStarted | StageAdvanced | StageFinished] = []
+
+    def started(self, event: StageStarted) -> None:
+        self.events.append(event)
+
+    def advanced(self, event: StageAdvanced) -> None:
+        self.events.append(event)
+
+    def finished(self, event: StageFinished) -> None:
+        self.events.append(event)
 
 
 class FakeEmbedder:
@@ -16,7 +31,7 @@ class FakeEmbedder:
         self.calls: list[list[str]] = []
         self.fail = False
 
-    def embed(self, texts: list[str]) -> np.ndarray:
+    def embed(self, texts: list[str], *, progress: IngestProgress | None = None) -> np.ndarray:
         self.calls.append(list(texts))
         if self.fail:
             raise RuntimeError("embedding failed")

@@ -476,3 +476,105 @@ def test_embedding_response_models_validate() -> None:
     assert openai_resp.data[0].embedding == [0.5, -0.5]
     assert openai_resp.usage is not None
     assert openai_resp.usage.prompt_tokens == 4
+
+
+def test_embed_reports_every_unique_passage_and_demotes_response_logs(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import logging
+
+    from conftest import RecordingProgress
+
+    from runtime.progress import StageAdvanced, StageFinished, StageStarted
+
+    mock_client = MagicMock()
+
+    def invoke_side_effect(**kwargs: Any) -> dict[str, Any]:
+        body = json.loads(kwargs["body"])
+        vec = [0.0] * 256
+        vec[0] = 1.0 if body["inputText"] == "a" else 2.0
+        return {
+            "body": _bedrock_body(vec, tokens=11),
+            "ResponseMetadata": {"RetryAttempts": 2},
+        }
+
+    mock_client.invoke_model.side_effect = invoke_side_effect
+    mock_session = MagicMock()
+    mock_session.region_name = "us-east-1"
+    mock_session.client.return_value = mock_client
+    monkeypatch.setattr("embeddings.bedrock.boto3.Session", lambda **_kw: mock_session)
+
+    embedder = BedrockEmbedding(
+        settings=_make_settings(
+            provider="Bedrock",
+            model="amazon.titan-embed-text-v2:0",
+            dimensions=256,
+            worker=1,
+            progress_interval=10,
+        )
+    )
+    progress = RecordingProgress()
+    with caplog.at_level(logging.DEBUG):
+        embedder.embed(["a", "b", "a"], progress=progress)
+
+    started = [e for e in progress.events if isinstance(e, StageStarted)]
+    advanced = [e for e in progress.events if isinstance(e, StageAdvanced)]
+    finished = [e for e in progress.events if isinstance(e, StageFinished)]
+    assert started == [StageStarted("embed", 2)]
+    assert [e.completed for e in advanced] == [1, 2]
+    assert advanced[-1].completed == 2  # unique passages, not 3
+    assert advanced[-1].tokens_in == 22
+    assert advanced[-1].retries == 4
+    assert advanced[-1].errors == 0
+    assert len(finished) == 1 and finished[0].stage == "embed"
+
+    response_logs = [r for r in caplog.records if "Bedrock response:" in r.message]
+    assert len(response_logs) == 2
+    assert all(r.levelno == logging.DEBUG for r in response_logs)
+    summary_logs = [r for r in caplog.records if "Embedding finished:" in r.message]
+    assert len(summary_logs) == 1
+    assert summary_logs[0].levelno == logging.INFO
+    assert "passages=2 tokens_in=22 retries=4 errors=0" in summary_logs[0].message
+
+
+def test_openai_embed_records_tokens_and_demotes_response_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    from conftest import RecordingProgress
+
+    from runtime.progress import StageAdvanced
+
+    embedder = OpenAIEmbedding(settings=_make_settings(dimensions=256, worker=1))
+    mock_client = MagicMock()
+
+    def post_side_effect(url: str, json: dict[str, Any]) -> MagicMock:
+        response = MagicMock()
+        response.raise_for_status.return_value = None
+        vec = [1.0] + [0.0] * 255
+        response.text = json_module.dumps(
+            {
+                "object": "list",
+                "data": [{"object": "embedding", "embedding": vec, "index": 0}],
+                "model": "text-embedding-bge-large-en-v1.5",
+                "usage": {"prompt_tokens": 9, "total_tokens": 9},
+            }
+        )
+        return response
+
+    import json as json_module
+
+    mock_client.post.side_effect = post_side_effect
+    embedder._client = mock_client
+
+    progress = RecordingProgress()
+    with caplog.at_level(logging.DEBUG):
+        embedder.embed(["first", "second", "first"], progress=progress)
+
+    advanced = [e for e in progress.events if isinstance(e, StageAdvanced)]
+    assert [e.completed for e in advanced] == [1, 2]
+    assert advanced[-1].tokens_in == 18
+    response_logs = [r for r in caplog.records if "OpenAI response:" in r.message]
+    assert len(response_logs) == 2
+    assert all(r.levelno == logging.DEBUG for r in response_logs)

@@ -138,6 +138,13 @@ oracle query "What do these documents say about caching?" --format text
 ```
 
 Ingestion saves the index; serving restores it without embedding documents again.
+In an interactive terminal, `oracle ingest` displays a live progress panel on
+stderr with four stages (discover, extract, chunk, embed), cumulative input
+tokens, and retry/error counts, while routing `INFO`/`DEBUG` logs to a rotating
+file (`~/.config/oracle/logs/oracle-ingest.log` when no log file is configured).
+Use `--no-progress` (or redirect stderr / set `NO_COLOR`) for plain line-by-line
+progress without control characters, or `oracle ingest --debug` to stream full
+logs directly in the terminal.
 Stop a foreground server with Ctrl-C. HTTP documentation is available at
 `http://127.0.0.1:8742/docs`; MCP is mounted at `/mcp/`. `oracle mcp` provides a
 stdio adapter to a running server. Use `--token` or `ORACLE_TOKEN` for bearer

@@ -123,7 +123,8 @@ class OpenAIEmbedding(BaseEmbedding):
             parsed = OpenAIEmbeddingResponse.model_validate_json(response.text)
             embedding = parsed.data[0].embedding
             tokens_in = parsed.usage.prompt_tokens if parsed.usage is not None else 0
-            logger.info(
+            self.usage.record(tokens_in)
+            logger.debug(
                 "OpenAI response: model=%s base_url=%s tokens_in=%d "
                 "tokens_out=n/a dimensions=%d duration=%.3fs",
                 self.model,
@@ -134,6 +135,7 @@ class OpenAIEmbedding(BaseEmbedding):
             )
             return embedding
         except httpx.HTTPError as exc:
+            self.usage.record_error()
             logger.error(
                 "OpenAI request failed: model=%s base_url=%s tokens_in=unknown tokens_out=n/a",
                 self.model,
@@ -144,4 +146,5 @@ class OpenAIEmbedding(BaseEmbedding):
                 "model access, and that the embedding model is loaded."
             ) from exc
         except ValidationError as exc:
+            self.usage.record_error()
             raise EmbeddingError("OpenAI returned an invalid embedding response.") from exc

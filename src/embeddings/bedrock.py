@@ -91,7 +91,12 @@ class BedrockEmbedding(BaseEmbedding):
             )
             with response["body"] as body:
                 parsed = EmbeddingResponse.model_validate_json(body.read())
-            logger.info(
+            metadata = response.get("ResponseMetadata")
+            retries = metadata.get("RetryAttempts", 0) if isinstance(metadata, dict) else 0
+            self.usage.record(
+                parsed.inputTextTokenCount, retries if isinstance(retries, int) else 0
+            )
+            logger.debug(
                 "Bedrock response: model=%s region=%s tokens_in=%d "
                 "tokens_out=n/a dimensions=%d duration=%.3fs",
                 self.model,
@@ -102,6 +107,7 @@ class BedrockEmbedding(BaseEmbedding):
             )
             return parsed.embedding
         except (BotoCoreError, ClientError) as exc:
+            self.usage.record_error()
             logger.error(
                 "Bedrock request failed: model=%s region=%s tokens_in=unknown tokens_out=n/a",
                 self.model,
@@ -112,6 +118,7 @@ class BedrockEmbedding(BaseEmbedding):
                 "region, model access, and bedrock:InvokeModel permission."
             ) from exc
         except ValidationError as exc:
+            self.usage.record_error()
             raise EmbeddingError("Bedrock returned an invalid embedding response.") from exc
 
 
