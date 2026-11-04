@@ -17,6 +17,7 @@ def test_uninitialized_index(settings: Settings, embedder: FakeEmbedder) -> None
     assert index.stats.chunks == 0
     for operation in (
         index.sources,
+        lambda: index.fetch("apple"),
         lambda: index.search(Query(query="apple")),
         lambda: index.save(settings.index_path),
     ):
@@ -24,6 +25,27 @@ def test_uninitialized_index(settings: Settings, embedder: FakeEmbedder) -> None
             operation()
     with pytest.raises(DocumentError):
         index.build([])
+
+
+def test_fetch_reuses_index_without_embedding_or_reading_source(
+    index: MemoryIndex, embedder: FakeEmbedder,
+) -> None:
+    before = len(embedder.calls)
+    chunk = index.fetch("apple")
+    assert not chunk.source.exists()
+    assert chunk.text == "Apple orchard growing guide."
+    with pytest.raises(KeyError):
+        index.fetch("missing")
+    assert len(embedder.calls) == before
+
+
+def test_fetch_does_not_return_removed_evidence(
+    index: MemoryIndex, chunks: list[Chunk],
+) -> None:
+    index.build(chunks[1:])
+    with pytest.raises(KeyError):
+        index.fetch("apple")
+    assert index.fetch("ocean") == chunks[1]
 
 
 def test_search_ranks_and_cites(index: MemoryIndex) -> None:

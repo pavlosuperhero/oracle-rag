@@ -39,10 +39,11 @@ from data.index import MemoryIndex
 from documents.chunks import DocumentError, chunk_sections, extract
 from embeddings import EmbeddingError, create_embedder
 from evaluation.evaluation import EvaluationCase, evaluate_retrieval
+from models.citations import SourceDocument
 from models.models import Query, SearchResult, SourceCatalog
 from runtime.presentation import format_evidence
 from runtime.runtime import run_saved_server, setup_logging
-from runtime.server import create_app, create_mcp, remote_search, remote_sources
+from runtime.server import create_app, create_mcp, remote_fetch, remote_search, remote_sources
 from service.service import ServiceError, run_with_control, start_background, stop_background
 from storages.storage import StorageError
 
@@ -197,7 +198,7 @@ def run_server(
     typer.echo(message, err=True)
     server = uvicorn.Server(
         uvicorn.Config(
-            create_app(index, token=token, host=host),
+            create_app(index, token=token, host=host, port=port),
             host=host,
             port=port,
             workers=1,
@@ -826,7 +827,13 @@ def mcp(ctx: typer.Context, url: Url = None, token: Token = None) -> None:
     async def list_sources() -> SourceCatalog:
         return await remote_sources(url, token, ctx.obj)
 
-    create_mcp(search, list_sources, settings=ctx.obj).run(transport="stdio")
+    async def fetch_document(passage_id: str) -> SourceDocument:
+        return await remote_fetch(passage_id, url, token, ctx.obj)
+
+    create_mcp(
+        search, list_sources, settings=ctx.obj,
+        fetch_document=fetch_document, base_url=url or ctx.obj.server.url,
+    ).run(transport="stdio")
 
 
 @app.command("config")

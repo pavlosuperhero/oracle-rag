@@ -138,7 +138,9 @@ def run_smoke(oracle: Path) -> None:
                 assert report["recall_at_k"] == report["mrr"] == 1
                 rpc = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
                 tools = request("/mcp/", rpc)["result"]["tools"]
-                assert {tool["name"] for tool in tools} == {"oracle", "oracle_sources"}
+                assert {tool["name"] for tool in tools} == {
+                    "oracle", "oracle_sources", "search", "fetch",
+                }
                 rpc.update(
                     method="tools/call", params={"name": "oracle", "arguments": {"query": "apple"}}
                 )

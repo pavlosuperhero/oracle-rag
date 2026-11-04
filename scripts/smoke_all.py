@@ -185,7 +185,7 @@ def run_all(executable: list[str], report: Path) -> int:
                             await session.initialize()
                             tools = await session.list_tools()
                             names = {tool.name for tool in tools.tools}
-                            assert names == {"oracle", "oracle_sources"}, names
+                            assert names == {"oracle", "oracle_sources", "search", "fetch"}, names
                             result = await session.call_tool("oracle", {"query": "apple"})
                             assert not result.is_error, result
                             result = await session.call_tool("oracle_sources", {})

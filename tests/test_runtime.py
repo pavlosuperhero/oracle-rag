@@ -25,7 +25,7 @@ def test_saved_app_restores_without_ingestion(
 
 
 def test_remote_clients_query_and_sources(
-    index: MemoryIndex, settings: Settings, monkeypatch
+    index: MemoryIndex, settings: Settings, embedder: FakeEmbedder, monkeypatch
 ) -> None:
     app = server.create_app(index, token="secret")
     client_class = httpx.AsyncClient
@@ -42,6 +42,11 @@ def test_remote_clients_query_and_sources(
             Query(query="apple", top_k=1), "http://testserver/", "secret", settings
         )
         assert result.results[0].id == "apple"
+        before = len(embedder.calls)
+        item = await server.remote_fetch("apple", "http://testserver/", "secret", settings)
+        assert item.id == "apple"
+        assert item.text == result.results[0].text
+        assert len(embedder.calls) == before
         catalog = await server.remote_sources("http://testserver/", "secret", settings)
         assert catalog.documents == 2
 

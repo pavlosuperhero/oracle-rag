@@ -3,7 +3,7 @@ from xml.etree.ElementTree import fromstring
 import pytest
 
 from models.models import Passage, SearchResult
-from runtime.presentation import format_evidence
+from runtime.presentation import format_evidence, source_document, source_html
 
 
 @pytest.mark.parametrize(
@@ -50,3 +50,17 @@ def test_empty_evidence_is_explicit(message) -> None:
     assert root.attrib["count"] == "0"
     assert root.findtext("message") == (message or "No evidence found.")
     assert root.find("passage") is None
+
+
+def test_citable_document_escapes_source_markup(chunks) -> None:
+    from dataclasses import replace
+
+    chunk = replace(chunks[0], title="<script>title</script>", text="<script>alert(1)</script>")
+    document = source_document(chunk, "http://localhost:9876/")
+    assert document.url == "http://localhost:9876/sources/apple"
+    assert document.text == chunk.text
+    assert document.metadata["line_start"] == 1
+    assert "page" not in document.metadata
+    html = source_html(document)
+    assert "<script>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html

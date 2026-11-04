@@ -56,6 +56,16 @@ class MemoryIndex:
     def load(self, path: Path, recursive: bool = False) -> IndexStats:
         return self.build(load_chunks(path, recursive, self.settings))
 
+    def fetch(self, passage_id: str) -> Chunk:
+        """Read an indexed passage by identity, without embedding or searching."""
+        snapshot = self._snapshot
+        if snapshot is None:
+            raise IndexNotReady("The in-memory index has not been loaded.")
+        for chunk in snapshot.chunks:
+            if chunk.id == passage_id:
+                return chunk
+        raise KeyError(passage_id)
+
     def sources(self) -> SourceCatalog:
         snapshot = self._snapshot
         if snapshot is None:

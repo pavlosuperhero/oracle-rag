@@ -136,6 +136,8 @@ def test_skill_asset_is_available(settings: Settings, tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     skill = destination / "oracle" / "SKILL.md"
     assert skill.is_file()
+    canonical = Path(__file__).resolve().parents[1] / "skill" / "SKILL.md"
+    assert skill.read_bytes() == canonical.read_bytes()
     skill.write_text("custom")
     result = invoke(settings, "install-skill", "--directory", str(destination))
     assert result.exit_code == 1

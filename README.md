@@ -143,6 +143,12 @@ Stop a foreground server with Ctrl-C. HTTP documentation is available at
 stdio adapter to a running server. Use `--token` or `ORACLE_TOKEN` for bearer
 authentication; binding outside loopback requires a token.
 
+For citation-compatible knowledge clients, Oracle also exposes MCP `search`
+and `fetch`. Search returns stable passage IDs, titles, and absolute source
+URLs; fetch reads that passage from the existing index without another
+embedding search. See [Codex source integration](docs/codex-sources.md) for
+connection steps, response contracts, and the remaining Sources-panel check.
+
 `oracle help` also shows the command reference. To run the server in the
 background after ingestion:
 

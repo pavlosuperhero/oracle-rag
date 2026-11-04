@@ -1,3 +1,5 @@
+import json
+
 from conftest import FakeEmbedder
 from fastapi.testclient import TestClient
 
@@ -24,7 +26,7 @@ def test_authentication(index: MemoryIndex) -> None:
     with TestClient(create_app(index, token="secret")) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/openapi.json").status_code == 200
-        for path in ("/sources", "/stats", "/mcp/"):
+        for path in ("/sources", "/stats", "/mcp/", "/documents/apple", "/sources/apple"):
             assert client.get(path).status_code == 401
             assert client.get(path, headers={"Authorization": "Bearer wrong"}).status_code == 401
         assert client.get("/sources", headers={"Authorization": "Bearer secret"}).status_code == 200
@@ -87,7 +89,9 @@ def test_mcp_tools_and_catalog_resource(index: MemoryIndex, embedder: FakeEmbedd
             },
         )
         assert initialized["serverInfo"]["name"] == "Oracle"
-        assert {tool["name"] for tool in rpc("tools/list")["tools"]} == {"oracle", "oracle_sources"}
+        tools = rpc("tools/list")["tools"]
+        assert {tool["name"] for tool in tools} == {"oracle", "oracle_sources", "search", "fetch"}
+        assert all(tool["annotations"]["readOnlyHint"] is True for tool in tools)
         before = len(embedder.calls)
         catalog = rpc("tools/call", {"name": "oracle_sources", "arguments": {}})
         assert not catalog.get("isError", False)
@@ -101,3 +105,41 @@ def test_mcp_tools_and_catalog_resource(index: MemoryIndex, embedder: FakeEmbedd
         assert '<passage id="apple">' in text
         assert "<location>Lines 1-1</location>" in text
         assert "semantic_score" not in text
+        found = rpc("tools/call", {"name": "search", "arguments": {"query": "apple"}})
+        assert not found.get("isError", False)
+        found_data = found["structuredContent"]
+        assert json.loads(found["content"][0]["text"]) == found_data
+        first = found_data["results"][0]
+        assert first == {
+            "id": "apple", "title": "Fruit",
+            "url": f"{index.settings.server.url}/sources/apple",
+        }
+        before = len(embedder.calls)
+        fetched = rpc("tools/call", {"name": "fetch", "arguments": {"id": first["id"]}})
+        item = fetched["structuredContent"]
+        assert json.loads(fetched["content"][0]["text"]) == item
+        assert item["text"] == "Apple orchard growing guide."
+        assert item["url"] == first["url"]
+        assert item["metadata"]["line_start"] == 1
+        assert "page" not in item["metadata"]
+        resource = rpc("resources/read", {"uri": "oracle://passages/apple"})
+        assert json.loads(resource["contents"][0]["text"]) == item
+        page = client.get("/sources/apple")
+        assert page.status_code == 200
+        assert item["text"] in page.text
+        assert client.get("/documents/apple").json() == item
+        assert len(embedder.calls) == before
+        missing = rpc("tools/call", {"name": "fetch", "arguments": {"id": "missing"}})
+        assert missing["isError"] is True
+        assert client.get("/sources/missing").status_code == 404
+        assert client.get("/documents/missing").status_code == 404
+        assert len(embedder.calls) == before
+
+
+def test_source_url_uses_actual_server_port(index: MemoryIndex) -> None:
+    with TestClient(create_app(index, port=9876)) as client:
+        response = client.get("/documents/apple")
+        assert response.json()["url"] == "http://127.0.0.1:9876/sources/apple"
+        page = client.get("/sources/apple")
+        assert "default-src 'none'" in page.headers["content-security-policy"]
+        assert page.headers["x-content-type-options"] == "nosniff"
