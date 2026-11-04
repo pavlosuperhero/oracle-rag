@@ -238,3 +238,21 @@ def test_provider_factory_dispatch(settings: Settings, monkeypatch) -> None:
     settings.provider.provider = "Bedrock"
     assert create_embedder(settings, region="eu-west-1", profile="dev") is bedrock.return_value
     bedrock.assert_called_once_with(settings=settings, region="eu-west-1", profile="dev")
+
+
+def test_background_python_prefers_pythonw_on_windows(tmp_path, monkeypatch) -> None:
+    python = tmp_path / "python.exe"
+    python.touch()
+    monkeypatch.setattr(cli.sys, "executable", str(python))
+    monkeypatch.setattr(cli.os, "name", "nt")
+    assert cli._background_python_executable() == str(python)
+    pythonw = tmp_path / "pythonw.exe"
+    pythonw.touch()
+    assert cli._background_python_executable() == str(pythonw)
+
+
+def test_background_python_is_unchanged_off_windows(tmp_path, monkeypatch) -> None:
+    (tmp_path / "pythonw.exe").touch()
+    monkeypatch.setattr(cli.sys, "executable", str(tmp_path / "python"))
+    monkeypatch.setattr(cli.os, "name", "posix")
+    assert cli._background_python_executable() == str(tmp_path / "python")
