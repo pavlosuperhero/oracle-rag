@@ -94,6 +94,16 @@ oracle serve start
 oracle query "What do these documents say about caching?" --format text
 ```
 
+Queries default to cited evidence blocks shared with the MCP `oracle` tool:
+passage ID, title, source URI, available location, and excerpt. Unicode and
+newlines are preserved; XML metacharacters are escaped to keep document text
+inside its excerpt. Missing page/line locators are stated explicitly rather
+than invented. Ranking scores and null fields are excluded from this view.
+Use `oracle query "QUESTION" --format json` for the full diagnostic response;
+scripts that parse query output as JSON must now request this format explicitly.
+The HTTP `/query` JSON response is unchanged. Evidence formatting does not
+filter irrelevant results or establish that a passage supports a claim.
+
 `oracle serve start` runs the server in the background. Use `oracle serve stop`
 to stop it. See [Configure and run](#configure-and-run) for provider settings
 and instructions for using your own documents.

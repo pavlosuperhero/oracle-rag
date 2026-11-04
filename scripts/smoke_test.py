@@ -118,7 +118,8 @@ def run_smoke(oracle: Path) -> None:
                         time.sleep(0.1)
                 assert EmbeddingsHandler.calls == ingested_calls
                 assert request("/stats")["chunks"] == 1
-                result = json.loads(run("query", "apple", "--url", url, "--token", "smoke-token"))
+                result = json.loads(run("query", "apple", "--format", "json", "--url", url,
+                                        "--token", "smoke-token"))
                 assert result["results"][0]["source"] == str(document)
                 assert (
                     json.loads(run("sources", "--url", url, "--token", "smoke-token"))["documents"]

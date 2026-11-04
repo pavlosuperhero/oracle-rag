@@ -97,3 +97,7 @@ def test_mcp_tools_and_catalog_resource(index: MemoryIndex, embedder: FakeEmbedd
         result = rpc("tools/call", {"name": "oracle", "arguments": {"query": "apple", "top_k": 1}})
         assert not result.get("isError", False)
         assert "apple" in result["content"][0]["text"].casefold()
+        text = result["content"][0]["text"]
+        assert '<passage id="apple">' in text
+        assert "<location>Lines 1-1</location>" in text
+        assert "semantic_score" not in text

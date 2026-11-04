@@ -40,6 +40,7 @@ from documents.chunks import DocumentError, chunk_sections, extract
 from embeddings import EmbeddingError, create_embedder
 from evaluation.evaluation import EvaluationCase, evaluate_retrieval
 from models.models import Query, SearchResult, SourceCatalog
+from runtime.presentation import format_evidence
 from runtime.runtime import run_saved_server, setup_logging
 from runtime.server import create_app, create_mcp, remote_search, remote_sources
 from service.service import ServiceError, run_with_control, start_background, stop_background
@@ -91,23 +92,6 @@ class SkillTarget(StrEnum):
 class QueryFormat(StrEnum):
     JSON = "json"
     TEXT = "text"
-
-
-def format_search_result(result: SearchResult) -> str:
-    lines = [f"Query: {result.query}", f"Results: {len(result.results)}"]
-    if result.message:
-        lines.append(result.message)
-    for number, passage in enumerate(result.results, 1):
-        lines.extend(
-            [
-                "",
-                f"{number}. {passage.title} (score: {passage.score:.4f})",
-                f"Citation: {passage.citation}",
-                f"Source: {passage.source}",
-                passage.text,
-            ]
-        )
-    return "\n".join(lines)
 
 
 def safe_console_text(value: str) -> str:
@@ -772,8 +756,8 @@ def query(
     top_k: Annotated[int | None, typer.Option(min=1, max=20)] = None,
     source: Annotated[str | None, typer.Option(help="Filter by source path substring.")] = None,
     output_format: Annotated[
-        QueryFormat, typer.Option("--format", help="Output format: JSON or readable text.")
-    ] = QueryFormat.JSON,
+        QueryFormat, typer.Option("--format", help="Output: cited evidence or diagnostic JSON.")
+    ] = QueryFormat.TEXT,
     url: Url = None,
     token: Token = None,
 ) -> None:
@@ -787,7 +771,7 @@ def query(
     if output_format is QueryFormat.JSON:
         output = json.dumps(result.model_dump(mode="json"), ensure_ascii=True, indent=2)
     else:
-        output = safe_console_text(format_search_result(result))
+        output = safe_console_text(format_evidence(result))
     typer.echo(output)
 
 

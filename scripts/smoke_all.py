@@ -164,9 +164,10 @@ def run_all(executable: list[str], report: Path) -> int:
                     raise RuntimeError(f"{failure}\n{output}") from failure
 
         def query() -> None:
-            result = json.loads(run("query", "apple", "--url", url, "--token", "smoke-token"))
+            result = json.loads(run("query", "apple", "--format", "json", "--url", url,
+                                    "--token", "smoke-token"))
             assert result["results"][0]["source"].endswith("orchard.md"), result
-            assert "Citation:" in run(
+            assert "<passage " in run(
                 "query", "apple", "--format", "text", "--url", url, "--token", "smoke-token"
             )
 

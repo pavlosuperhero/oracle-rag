@@ -412,3 +412,31 @@ def test_chunk_sections_uses_config_defaults_when_omitted(
     assert chunks[0].text == "Short text content."
     assert chunks[0].line_start == 1
     assert chunks[0].line_end == 1
+
+
+def test_overlap_preserves_whole_words_and_source_offsets() -> None:
+    words = [f"word{number:03d}" for number in range(100)]
+    text = " ".join(words)
+    section = Section(Path("/abs/words.txt"), "Words", text)
+    chunks = chunk_sections([section], size=120, overlap=23)
+    assert len(chunks) > 1
+    covered = set()
+    previous_start = -1
+    previous_end = 0
+    for chunk in chunks:
+        start = text.index(chunk.text)
+        assert start > previous_start
+        assert start <= previous_end
+        assert len(chunk.text) <= 120
+        assert all(word in words for word in chunk.text.split())
+        assert chunk.line_start == chunk.line_end == 1
+        covered.update(chunk.text.split())
+        previous_start, previous_end = start, start + len(chunk.text) + 1
+    assert covered == set(words)
+
+
+def test_overlap_always_advances_for_an_overlong_word() -> None:
+    text = "x" * 500
+    chunks = chunk_sections([Section(Path("/abs/word.txt"), "Word", text)], 100, 20)
+    assert len(chunks) == 5
+    assert "".join(chunk.text for chunk in chunks) == text

@@ -184,7 +184,15 @@ def chunk_sections(
                 )
             if end == len(text):
                 break
-            start = end - overlap
+            next_start = end - overlap
+            # Expand overlap to include the whole word, while always advancing.
+            while (
+                next_start > start
+                and not text[next_start - 1].isspace()
+                and not text[next_start].isspace()
+            ):
+                next_start -= 1
+            start = next_start if next_start > start else end
     return chunks
 
 

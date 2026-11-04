@@ -98,12 +98,21 @@ def test_query_sources_and_evaluate(
 
     monkeypatch.setattr(cli, "remote_search", search)
     monkeypatch.setattr(cli, "remote_sources", sources)
-    result = invoke(settings, "query", "apple", "--top-k", "1")
+    result = invoke(settings, "query", "apple", "--top-k", "1", "--format", "json")
     assert result.exit_code == 0, result.output
-    assert json.loads(result.stdout)["results"][0]["id"] == "apple"
-    result = invoke(settings, "query", "apple", "--format", "text")
+    diagnostic = json.loads(result.stdout)["results"][0]
+    assert diagnostic["id"] == "apple"
+    assert diagnostic["page"] is None
+    assert diagnostic["line_start"] == 1
+    assert "semantic_score" in diagnostic
+    result = invoke(settings, "query", "apple")
     assert result.exit_code == 0, result.output
-    assert "Citation:" in result.stdout
+    assert '<passage id="apple">' in result.stdout
+    assert "<location>Lines 1-1</location>" in result.stdout
+    assert "score" not in result.stdout
+    explicit = invoke(settings, "query", "apple", "--format", "text")
+    assert explicit.exit_code == 0, explicit.output
+    assert explicit.stdout == result.stdout
     result = invoke(settings, "sources")
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["documents"] == 2
