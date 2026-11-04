@@ -154,6 +154,27 @@ oracle query "What do these documents say about caching?" --format text
 ```
 
 Ingestion saves the index; serving restores it without embedding documents again.
+Ingestion checkpoints each successful unique embedding in
+`<destination-index>.embeddings.sqlite3`. After a failure or interruption, rerun
+the same command: extraction runs again, but completed embeddings are reused.
+The checkpoint is retained after success, so unchanged inputs also avoid requests
+on later rebuilds. Progress and the summary report reused embeddings; token and
+retry totals describe requests made in the current run only.
+
+Reuse requires matching provider, model, dimensions, endpoint/region identity,
+and exact input (including document title). Changed passages are embedded again.
+For an endpoint serving different model weights under the same model name, remove
+its checkpoint before rebuilding. `oracle ingest --no-resume` bypasses checkpoint
+reads and writes for that run; it does not erase or refresh an existing checkpoint.
+Checkpoint rows contain input hashes and vectors, with checksums and shape/finite
+validation. Invalid rows are recomputed; an unreadable database stops ingestion
+with a storage error. SQLite commits every vector durably in a worker thread,
+which adds disk I/O. Protect checkpoints like saved indexes. `oracle clean`
+includes checkpoints in its existing confirmed cleanup.
+
+The usable `.npz` index is still replaced only after the complete ingestion
+succeeds. A failed rebuild leaves it intact. Library embedding calls and search
+do not use checkpoints unless a checkpoint adapter is explicitly supplied.
 In an interactive terminal, `oracle ingest` displays a live progress panel on
 stderr with four stages (discover, extract, chunk, embed), cumulative input
 tokens, and retry/error counts, while routing `INFO`/`DEBUG` logs to a rotating
@@ -164,6 +185,13 @@ logs directly in the terminal.
 On failure, the final summary includes errors and known retries. Failed requests
 whose SDK exception has no retry metadata are counted separately as having unknown
 retries, rather than being reported as zero retries.
+Bedrock records actual SDK attempt counts through its retry event hook, including
+terminal connection failures. The rotating INFO log includes failed-attempt
+tracebacks and nested connection causes (such as DNS errors), without logging
+document input at INFO. There is still one SDK retry budget; no application retry
+layer is added. When the SDK does not expose attempt information, retries remain
+explicitly unknown. These diagnostics do not guarantee that every connection
+failure can be attributed to a single cause.
 Stop a foreground server with Ctrl-C. HTTP documentation is available at
 `http://127.0.0.1:8742/docs`; MCP is mounted at `/mcp/`. `oracle mcp` provides a
 stdio adapter to a running server. Use `--token` or `ORACLE_TOKEN` for bearer

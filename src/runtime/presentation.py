@@ -156,6 +156,7 @@ class RichIngestProgress(TotalsRecorder):
                 f"{'':18}tokens in: {self.tokens_in:,}   retries: {self.retries:,}"
                 f"   errors: {self.errors:,}"
                 f"   failed requests with unknown retries: {self.retries_unknown:,}"
+                f"   reused: {self.reused:,}"
             )
         )
         if self._log_path:
@@ -238,6 +239,7 @@ class PlainIngestProgress(TotalsRecorder):
             self._print(
                 f"{stage_prefix(stage)} {event.completed:,}/{total:,} "
                 f"({event.completed * 100 // total}%)  tokens in: {event.tokens_in:,}"
+                f"  reused: {event.reused:,}"
             )
 
     def finished(self, event: StageFinished) -> None:

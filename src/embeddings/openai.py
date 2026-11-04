@@ -78,6 +78,7 @@ class OpenAIEmbedding(BaseEmbedding):
                 "or your provider configuration."
             )
         self._base_url, self._endpoint = _resolve_embeddings_endpoint(raw_base_url)
+        self.checkpoint_endpoint = self._endpoint
         self._api_key = (
             api_key
             or os.environ.get("OPENAI_API_KEY")
@@ -165,6 +166,11 @@ class OpenAIEmbedding(BaseEmbedding):
 
     def _request_failure(self, exc: httpx.HTTPError) -> EmbeddingError:
         self.usage.record_error()
+        logger.info(
+            "OpenAI failure details: model=%s connect_timeout=%s read_timeout=%s",
+            self.model, self._timeout.connect, self._timeout.read,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
         logger.error(
             "OpenAI request failed: model=%s base_url=%s tokens_in=unknown tokens_out=n/a",
             self.model,

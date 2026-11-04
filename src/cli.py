@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import sys
+from contextlib import ExitStack
 from enum import StrEnum
 from importlib.resources import files
 from pathlib import Path
@@ -37,6 +38,7 @@ from data.data import (
 from data.index import MemoryIndex
 from documents.chunks import DocumentError, chunk_files
 from embeddings import EmbeddingError, create_embedder
+from embeddings.embeddings import BaseEmbedding
 from evaluation.evaluation import EvaluationCase, evaluate_retrieval
 from models.citations import SourceDocument
 from models.models import Query, SearchResult, SourceCatalog
@@ -53,6 +55,7 @@ from runtime.progress import IngestProgress, NullProgress, tracked_stage
 from runtime.runtime import run_saved_server, setup_logging
 from runtime.server import create_app, create_mcp, remote_fetch, remote_search, remote_sources
 from service.service import ServiceError, run_with_control, start_background, stop_background
+from storages.checkpoint import SQLiteCheckpoint, checkpoint_path
 from storages.storage import StorageError
 
 app = typer.Typer(
@@ -176,18 +179,30 @@ def ingest_index(
     profile: str | None,
     settings: Settings,
     progress: IngestProgress | None = None,
+    *,
+    resume: bool = True,
 ) -> MemoryIndex:
-    index = MemoryIndex(
-        create_embedder(region=region, profile=profile, settings=settings), settings
-    )
-    if path is None:
-        with tracked_stage(progress or NullProgress(), "discover") as advance:
-            files = managed_documents(settings)
-            advance(len(files))
-        index.build(chunk_files(files, settings.chunking, progress), progress=progress)
-    else:
-        index.load(path, recursive, progress=progress)
-    index.save(destination)
+    embedder = create_embedder(region=region, profile=profile, settings=settings)
+    index = MemoryIndex(embedder, settings)
+    with ExitStack() as stack:
+        if resume and isinstance(embedder, BaseEmbedding):
+            cache_path = checkpoint_path(destination)
+            embedder.checkpoint = stack.enter_context(
+                SQLiteCheckpoint(cache_path, embedder.checkpoint_identity)
+            )
+            logger.info("Embedding checkpoint: %s", cache_path)
+        try:
+            if path is None:
+                with tracked_stage(progress or NullProgress(), "discover") as advance:
+                    files = managed_documents(settings)
+                    advance(len(files))
+                index.build(chunk_files(files, settings.chunking, progress), progress=progress)
+            else:
+                index.load(path, recursive, progress=progress)
+            index.save(destination)
+        finally:
+            if isinstance(embedder, BaseEmbedding):
+                embedder.checkpoint = None
     return index
 
 
@@ -232,6 +247,9 @@ def ingest(
     index: IndexFile = None,
     region: Region = None,
     profile: Profile = None,
+    resume: Annotated[
+        bool, typer.Option("--resume/--no-resume", help="Reuse durable embedding checkpoints.")
+    ] = True,
     src: Annotated[
         Path | None, typer.Option("--src", help="Additional corpus: save a separate database file.")
     ] = None,
@@ -250,7 +268,7 @@ def ingest(
         ),
     ] = False,
 ) -> None:
-    """Re-embed the corpus and atomically replace the saved database.
+    """Embed missing passages and atomically replace the saved database.
 
     Progress and the final summary go to stderr. INFO/DEBUG logs go to a rotating log
     file; only warnings and errors appear in the terminal unless --debug is set.
@@ -304,7 +322,7 @@ def ingest(
         destination = destination.expanduser().resolve()
         with tracker:
             loaded = ingest_index(
-                selected, recursive, destination, region, profile, settings, tracker
+                selected, recursive, destination, region, profile, settings, tracker, resume=resume
             )
     except (DataError, DocumentError, EmbeddingError, StorageError, OSError) as exc:
         console.print(
@@ -314,6 +332,11 @@ def ingest(
             f"{tracker.retries_unknown:,}, elapsed {format_duration(perf_counter() - started)}",
             markup=False, highlight=False, soft_wrap=True,
         )
+        if resume:
+            console.print(
+                "Completed embeddings remain checkpointed. Rerun the same command to resume.",
+                markup=False,
+            )
         fail(exc)
     typer.echo(
         f"Saved {loaded.stats.documents} documents, {loaded.stats.chunks} chunks to {destination}"
@@ -321,6 +344,7 @@ def ingest(
     summary = (
         f"Summary: {loaded.stats.documents} documents, {loaded.stats.chunks} chunks, "
         f"tokens in {tracker.tokens_in:,}, retries {tracker.retries:,}, "
+        f"reused embeddings {tracker.reused:,}, "
         f"elapsed {format_duration(perf_counter() - started)}"
     )
     console.print(summary, markup=False, highlight=False, soft_wrap=True)
@@ -802,7 +826,11 @@ def clean_targets(settings: Settings, all_data: bool) -> list[Path]:
         if not root.exists():
             continue
         if root == settings.index_path.parent:
-            candidates = list(root.glob("*.npz"))
+            candidates = [
+                *root.glob("*.npz"),
+                *root.glob("*.embeddings.sqlite3"),
+                *root.glob("*.embeddings.sqlite3-journal"),
+            ]
         else:
             candidates = []
             for directory, subdirectories, names in os.walk(root, followlinks=False):
