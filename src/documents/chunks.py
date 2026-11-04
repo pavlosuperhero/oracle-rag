@@ -2,6 +2,7 @@ import hashlib
 import logging
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,7 +10,8 @@ from bs4 import BeautifulSoup, Comment
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
-from configs.configs import Settings, load_config
+from configs.configs import ChunkingConfig, Settings, load_config
+from runtime.progress import IngestProgress, NullProgress, tracked_stage
 
 logger = logging.getLogger(__name__)
 
@@ -268,11 +270,33 @@ def chunk_sections(
     return chunks
 
 
+def chunk_files(
+    files: Sequence[Path], config: ChunkingConfig, progress: IngestProgress | None = None
+) -> list[Chunk]:
+    """Extract text from discovered files and split it into passages, reporting progress."""
+    progress = progress or NullProgress()
+    sections: list[Section] = []
+    with tracked_stage(progress, "extract", len(files)) as advance:
+        for number, file in enumerate(files, 1):
+            sections.extend(extract(file))
+            advance(number)
+    with tracked_stage(progress, "chunk") as advance:
+        chunks = chunk_sections(sections, config.size, config.overlap)
+        advance(len(chunks))
+    return chunks
+
+
 def load_chunks(
-    path: Path, recursive: bool = False, settings: Settings | None = None
+    path: Path,
+    recursive: bool = False,
+    settings: Settings | None = None,
+    progress: IngestProgress | None = None,
 ) -> list[Chunk]:
     config = (settings or load_config()).chunking
-    sections = [section for file in discover(path, recursive) for section in extract(file)]
-    if not sections:
+    with tracked_stage(progress or NullProgress(), "discover") as advance:
+        files = discover(path, recursive)
+        advance(len(files))
+    chunks = chunk_files(files, config, progress)
+    if not chunks:
         raise DocumentError(f"No readable document text found in {path}")
-    return chunk_sections(sections, config.size, config.overlap)
+    return chunks

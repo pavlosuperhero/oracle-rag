@@ -9,6 +9,7 @@ import sys
 from enum import StrEnum
 from importlib.resources import files
 from pathlib import Path
+from time import perf_counter
 from typing import Annotated, NoReturn
 
 import httpx
@@ -18,8 +19,7 @@ from pydantic import ValidationError
 from rich import box
 from rich.console import Console
 from rich.filesize import decimal
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from rich.table import Column, Table
+from rich.table import Table
 from rich.text import Text
 from watchfiles import PythonFilter, run_process
 
@@ -27,7 +27,6 @@ from configs.configs import ConfigError, Settings, load_config
 from data.data import (
     DataError,
     Download,
-    DownloadProgress,
     Resource,
     add_resource,
     download_resources,
@@ -36,12 +35,21 @@ from data.data import (
     remove_resource,
 )
 from data.index import MemoryIndex
-from documents.chunks import DocumentError, chunk_sections, extract
+from documents.chunks import DocumentError, chunk_files
 from embeddings import EmbeddingError, create_embedder
 from evaluation.evaluation import EvaluationCase, evaluate_retrieval
 from models.citations import SourceDocument
 from models.models import Query, SearchResult, SourceCatalog
-from runtime.presentation import format_evidence
+from runtime.presentation import (
+    PlainDownloadProgress,
+    PlainIngestProgress,
+    RichDownloadProgress,
+    RichIngestProgress,
+    format_duration,
+    format_evidence,
+    wants_live_panel,
+)
+from runtime.progress import IngestProgress, NullProgress, tracked_stage
 from runtime.runtime import run_saved_server, setup_logging
 from runtime.server import create_app, create_mcp, remote_fetch, remote_search, remote_sources
 from service.service import ServiceError, run_with_control, start_background, stop_background
@@ -167,15 +175,18 @@ def ingest_index(
     region: str | None,
     profile: str | None,
     settings: Settings,
+    progress: IngestProgress | None = None,
 ) -> MemoryIndex:
     index = MemoryIndex(
         create_embedder(region=region, profile=profile, settings=settings), settings
     )
     if path is None:
-        sections = [section for file in managed_documents(settings) for section in extract(file)]
-        index.build(chunk_sections(sections, settings.chunking.size, settings.chunking.overlap))
+        with tracked_stage(progress or NullProgress(), "discover") as advance:
+            files = managed_documents(settings)
+            advance(len(files))
+        index.build(chunk_files(files, settings.chunking, progress), progress=progress)
     else:
-        index.load(path, recursive)
+        index.load(path, recursive, progress=progress)
     index.save(destination)
     return index
 
@@ -224,9 +235,62 @@ def ingest(
     src: Annotated[
         Path | None, typer.Option("--src", help="Additional corpus: save a separate database file.")
     ] = None,
+    show_progress: Annotated[
+        bool,
+        typer.Option(
+            "--progress/--no-progress",
+            help="Live progress panel in a terminal; --no-progress prints plain lines to stderr.",
+        ),
+    ] = True,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            "--debug",
+            help="Stream logs in the terminal instead of the panel (DEBUG unless --log-level).",
+        ),
+    ] = False,
 ) -> None:
-    """Re-embed the corpus and atomically replace the saved database."""
+    """Re-embed the corpus and atomically replace the saved database.
+
+    Progress and the final summary go to stderr. INFO/DEBUG logs go to a rotating log
+    file; only warnings and errors appear in the terminal unless --debug is set.
+    """
     settings: Settings = ctx.obj
+    console = Console(stderr=True)
+    inherited = ctx.parent.params if ctx.parent else {}
+    explicit_level = inherited.get("log_level")
+    level_name = (
+        explicit_level.value
+        if isinstance(explicit_level, LogLevel)
+        else explicit_level
+        if isinstance(explicit_level, str)
+        else ("DEBUG" if debug else None)
+    )
+    try:
+        log_path = setup_logging(
+            level_name,
+            inherited.get("log_file"),
+            settings,
+            terminal_level=None if debug else "WARNING",
+            console=None if debug else console,
+            default_log_file=settings.index_path.parent.parent / "logs" / "oracle-ingest.log",
+        )
+    except OSError as exc:
+        fail(exc)
+    provider = settings.provider
+    active_profile = profile or provider.profile or "default"
+    header = f"Oracle ingest  profile={active_profile}  model={provider.model}"
+    if provider.provider == "Bedrock":
+        header += f"  region={region or provider.region}"
+    else:
+        header += f"  provider={provider.provider}"
+    log_text = str(log_path) if log_path else None
+    tracker: RichIngestProgress | PlainIngestProgress = (
+        RichIngestProgress(console, header, log_text)
+        if not debug and wants_live_panel(console, show_progress)
+        else PlainIngestProgress(console, header, log_text)
+    )
+    started = perf_counter()
     try:
         if path is not None and src is not None:
             raise DataError("Choose a positional path or --src, not both.")
@@ -238,12 +302,23 @@ def ingest(
             identity = hashlib.sha256(os.path.normcase(str(resolved)).encode()).hexdigest()[:12]
             destination = settings.index_path.parent / f"{name}-{identity}.npz"
         destination = destination.expanduser().resolve()
-        loaded = ingest_index(selected, recursive, destination, region, profile, settings)
+        with tracker:
+            loaded = ingest_index(
+                selected, recursive, destination, region, profile, settings, tracker
+            )
     except (DataError, DocumentError, EmbeddingError, StorageError, OSError) as exc:
         fail(exc)
     typer.echo(
         f"Saved {loaded.stats.documents} documents, {loaded.stats.chunks} chunks to {destination}"
     )
+    summary = (
+        f"Summary: {loaded.stats.documents} documents, {loaded.stats.chunks} chunks, "
+        f"tokens in {tracker.tokens_in:,}, retries {tracker.retries:,}, "
+        f"elapsed {format_duration(perf_counter() - started)}"
+    )
+    console.print(summary, markup=False, highlight=False, soft_wrap=True)
+    if log_text:
+        console.print(f"Log file: {log_text}", markup=False, highlight=False, soft_wrap=True)
 
 
 @data_app.command("list")
@@ -345,66 +420,74 @@ def data_download(
         bool, typer.Option("--all", help="Download every source entry.")
     ] = False,
     force: Annotated[bool, typer.Option(help="Re-download files already present.")] = False,
-    no_progress: Annotated[
-        bool, typer.Option("--no-progress", help="Hide download progress bars.")
+    show_progress: Annotated[
+        bool,
+        typer.Option(
+            "--progress/--no-progress",
+            help="Live progress panel in a terminal; --no-progress prints plain lines to stderr.",
+        ),
+    ] = True,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            "--debug",
+            help="Stream logs in the terminal instead of the panel (DEBUG unless --log-level).",
+        ),
     ] = False,
 ) -> None:
     """Download all or selected source entries; no ingestion or embedding calls."""
+    settings: Settings = ctx.obj
+    console = Console(stderr=True)
+    root_ctx = ctx.find_root()
+    inherited = root_ctx.params if root_ctx else {}
+    explicit_level = inherited.get("log_level")
+    level_name = (
+        explicit_level.value
+        if isinstance(explicit_level, LogLevel)
+        else explicit_level
+        if isinstance(explicit_level, str)
+        else ("DEBUG" if debug else None)
+    )
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn(
-                "{task.description}",
-                markup=False,
-                table_column=Column(max_width=24, no_wrap=True, overflow="ellipsis"),
-            ),
-            BarColumn(),
-            TextColumn("{task.fields[detail]}", markup=False),
-            TimeElapsedColumn(),
-            console=Console(stderr=True),
-            disable=no_progress,
-            redirect_stdout=False,
-        ) as display:
-            overall = display.add_task("Files", total=None, detail="Preparing…")
-            current = display.add_task("Current file", total=None, detail="Waiting…")
-            active: Path | None = None
-
-            def update(event: DownloadProgress) -> None:
-                nonlocal active
-                if active != event.path:
-                    display.reset(current, total=event.total)
-                    active = event.path
-                detail = f"{decimal(event.received)} / "
-                detail += decimal(event.total) if event.total is not None else "unknown size"
-                if event.status == "connecting":
-                    detail = "Connecting…"
-                elif event.status == "cached":
-                    detail = f"Cached ({decimal(event.received)})"
-                display.update(
-                    overall,
-                    total=event.total_files,
-                    completed=event.completed_files,
-                    detail=f"{event.completed_files}/{event.total_files} files",
-                )
-                display.update(
-                    current,
-                    description=f"{event.path.parent.name}/{event.path.name}",
-                    total=event.total,
-                    completed=event.received,
-                    detail=detail,
-                )
-
+        log_path = setup_logging(
+            level_name,
+            inherited.get("log_file"),
+            settings,
+            terminal_level=None if debug else "WARNING",
+            console=None if debug else console,
+            default_log_file=settings.index_path.parent.parent / "logs" / "oracle-download.log",
+        )
+    except OSError as exc:
+        fail(exc)
+    scope = "all sources" if all_sources else ", ".join(resource_ids or ()) or "none"
+    header = f"Oracle data download  sources={scope}  directory={settings.data_path}"
+    log_text = str(log_path) if log_path else None
+    tracker: RichDownloadProgress | PlainDownloadProgress = (
+        RichDownloadProgress(console, header, log_text)
+        if not debug and wants_live_panel(console, show_progress)
+        else PlainDownloadProgress(console, header, log_text)
+    )
+    started = perf_counter()
+    try:
+        with tracker:
             paths = download_resources(
-                ctx.obj,
+                settings,
                 resource_ids or [],
                 all_sources=all_sources,
                 force=force,
-                progress=update,
+                progress=tracker,
             )
     except (DataError, OSError) as exc:
         fail(exc)
     for path in paths:
         typer.echo(str(path))
+    summary = (
+        f"Summary: {len(paths)} files ({decimal(tracker.received_bytes)}) "
+        f"in {format_duration(perf_counter() - started)}"
+    )
+    console.print(summary, markup=False, highlight=False, soft_wrap=True)
+    if log_text:
+        console.print(f"Log file: {log_text}", markup=False, highlight=False, soft_wrap=True)
 
 
 def _background_python_executable() -> str:

@@ -1,9 +1,18 @@
 ---
 name: oracle
-description: 'Retrieve and apply cited evidence from Oracle books and documentation, including Python PEPs, testing, TDD, architecture, spec-driven development, and prompt engineering. Use when the user asks to consult the local knowledge base, ground a recommendation or design decision, improve a prompt using indexed references, compare source guidance, or evaluate retrieval. Discover available sources rather than assuming a title is indexed.'
+description: 'MANDATORY default knowledge-retrieval pipeline for coding, architecture, debugging, testing, prompt engineering, and design tasks. Before designing, writing code, or answering technical questions, automatically discover the running Oracle catalog (`oracle_sources` or `oracle sources`), select the best-fit reference sources (Clean Architecture, Think Python, PEPs, asyncio, HTTPX, Boto3, TDD, Linux/systems, prompt engineering, etc.), retrieve focused evidence (`oracle` or `oracle query`), and only then execute the task.'
 ---
 
 # Oracle document retrieval
+
+## Automatic ReAct Grounding Pipeline (Execute Before Coding or Designing)
+
+Do not wait for the user to say "use Oracle". On any non-trivial coding, architecture, refactoring, testing, or prompt/issue authoring task, run this 4-step pipeline **before** proposing a design or editing code:
+
+1. **Discover the catalog (`oracle_sources` / `oracle sources`)**: Inspect the live indexed sources once per task to see what authoritative books, specifications, and official docs are available.
+2. **Select the best-fit sources**: Match the task's technical domain to specific `--source` substrings (for example: `clean-architecture` or `cosmic-python` for boundaries/ports, `think-python` or `google-python` or `peps` for Python design, `python-asyncio` or `httpx-timeouts` or `boto3-retries` for I/O and concurrency, `tdd-with-python` or `tests` for verification, `prompt-engineering` for prompts/issues).
+3. **Retrieve focused evidence (`oracle` / `oracle query "QUESTION" --source <id> --top-k 3`)**: Query each selected source with a specific technical question and read the returned excerpts and citations.
+4. **Apply and implement**: Ground your design choices, code changes, commit messages, and PR/issue descriptions in the retrieved passages (citing source and page/line locator) combined with the repository's actual code and tests.
 
 ## Turn evidence into useful assistance
 
@@ -176,7 +185,11 @@ oracle dev --profile default
 
 
 ingest writes passages, metadata, and embeddings atomically to
-~/.config/oracle/vector_database/index.npz and exits. Use --index PATH or ORACLE_INDEX consistently
+~/.config/oracle/vector_database/index.npz and exits. In an interactive terminal,
+ingest shows a live 4-stage progress panel on stderr and writes INFO/DEBUG logs
+to a rotating file (~/.config/oracle/logs/oracle-ingest.log by default); use
+--no-progress for plain line output without escape sequences, or --debug to
+stream logs in the terminal. Use --index PATH or ORACLE_INDEX consistently
 to select a different file. Each ingestion re-embeds and replaces its database;
 old embeddings are not reused. Without a path, ingest uses registered downloaded
 files in ~/.config/oracle/data/. --src PATH creates a database file
@@ -216,7 +229,11 @@ not the books currently indexed by the server. oracle data add ID --title TITLE
 oracle data remove ID removes only its entry; cached files remain, but default
 ingestion excludes that removed source. oracle data download ID [ID ...]
 downloads selected entries; --all downloads every entry. Files are stored in
-~/.config/oracle/data/<id>/; no embeddings are generated until ingest.
+~/.config/oracle/data/<id>/; no embeddings are generated until ingest. In an
+interactive terminal, data download shows a pinned live progress panel on stderr
+and writes INFO/DEBUG logs to ~/.config/oracle/logs/oracle-download.log (use
+--no-progress for plain line output without escape sequences, or --debug to
+stream logs in the terminal).
 Use oracle sources or oracle_sources to inspect the actual running RAG.
 
 oracle clean asks for confirmation before deleting database files.
@@ -240,14 +257,17 @@ are errors, never silently ignored. No credentials or bearer tokens belong in YA
 Logging
 
 Use oracle --log-file PATH serve to write rotating logs. Detached serve
-uses the configured log file or creates oracle-serve.log; use oracle serve --debug to keep detailed logs in the terminal, or --foreground for the
+uses the configured log file or creates oracle-serve.log; ingest writes to the
+configured log file or ~/.config/oracle/logs/oracle-ingest.log while keeping
+terminal output limited to warnings, errors, and progress unless --debug is set.
+Use oracle serve --debug to keep detailed logs in the terminal, or --foreground for the
 configured log level. Set ORACLE_LOG_FILE/ORACLE_LOG_LEVEL as alternatives.
 Global options precede the command.
-INFO logs timestamps, model ID, region, Bedrock input-token usage, dimensions,
-download/database events, and operation timings. Output tokens are n/a: embeddings do not
-generate text. DEBUG additionally logs sources, passages, embedding inputs,
-and queries; these logs can contain confidential material. Do not enable DEBUG
-without permission when working with private documents.
+INFO logs timestamps, model ID, region, embedding stage token/retry summaries, dimensions,
+download/database events, and operation timings. Per-passage embedding responses,
+sources, passages, embedding inputs, and queries are logged at DEBUG; these logs
+can contain confidential material. Output tokens are n/a: embeddings do not
+generate text. Do not enable DEBUG without permission when working with private documents.
 
 Procedure
 

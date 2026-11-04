@@ -256,3 +256,285 @@ def test_background_python_is_unchanged_off_windows(tmp_path, monkeypatch) -> No
     monkeypatch.setattr(cli.sys, "executable", str(tmp_path / "python"))
     monkeypatch.setattr(cli.os, "name", "posix")
     assert cli._background_python_executable() == str(tmp_path / "python")
+
+
+def test_ingest_emits_all_four_stages_in_order(
+    settings: Settings, tmp_path: Path, monkeypatch
+) -> None:
+    import logging
+
+    from conftest import RecordingProgress
+
+    from configs.configs import AiProviderConfig
+    from embeddings.embeddings import BaseEmbedding
+    from runtime.progress import StageAdvanced, StageFinished, StageStarted
+
+    class CountingEmbedding(BaseEmbedding):
+        provider_name = "Bedrock"
+        dimensions = 256
+        model = "amazon.titan-embed-text-v2:0"
+
+        def __init__(self, config: AiProviderConfig) -> None:
+            self._config = config
+
+        def _embed_one(self, text: str) -> list[float]:
+            self.usage.record(tokens_in=15, retries=1)
+            logging.getLogger("embeddings.bedrock").debug(
+                "Bedrock response: model=%s tokens_in=15", self.model
+            )
+            vec = [0.0] * self.dimensions
+            vec[0] = 1.0
+            return vec
+
+    monkeypatch.setattr(
+        cli, "create_embedder", lambda **kwargs: CountingEmbedding(settings.provider)
+    )
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "a.md").write_text("First document about apples.\n")
+    (docs / "b.md").write_text("Second document about oranges.\n")
+
+    progress = RecordingProgress()
+    loaded = cli.ingest_index(
+        docs, False, settings.index_path, None, None, settings, progress
+    )
+    assert loaded.stats.documents == 2
+    assert loaded.stats.chunks == 2
+
+    started = [e.stage for e in progress.events if isinstance(e, StageStarted)]
+    finished = [e.stage for e in progress.events if isinstance(e, StageFinished)]
+    assert started == ["discover", "extract", "chunk", "embed"]
+    assert finished == ["discover", "extract", "chunk", "embed"]
+    embed_advances = [
+        e for e in progress.events if isinstance(e, StageAdvanced) and e.stage == "embed"
+    ]
+    assert embed_advances[-1].completed == 2
+    assert embed_advances[-1].tokens_in == 30
+    assert embed_advances[-1].retries == 2
+
+
+def test_ingest_does_not_log_info_to_terminal_and_writes_rotating_log(
+    settings: Settings, tmp_path: Path, monkeypatch
+) -> None:
+    import logging
+
+    from configs.configs import AiProviderConfig
+    from embeddings.embeddings import BaseEmbedding
+
+    class LoggingEmbedding(BaseEmbedding):
+        provider_name = "Bedrock"
+        dimensions = 256
+        model = "amazon.titan-embed-text-v2:0"
+
+        def __init__(self, config: AiProviderConfig) -> None:
+            self._config = config
+
+        def _embed_one(self, text: str) -> list[float]:
+            self.usage.record(tokens_in=12)
+            logging.getLogger("embeddings.bedrock").debug(
+                "Bedrock response: model=%s tokens_in=12", self.model
+            )
+            vec = [0.0] * self.dimensions
+            vec[0] = 1.0
+            return vec
+
+    monkeypatch.setattr(
+        cli, "create_embedder", lambda **kwargs: LoggingEmbedding(settings.provider)
+    )
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "guide.md").write_text("Alpha beta gamma delta.\n")
+
+    result = invoke(settings, "ingest", str(docs))
+    assert result.exit_code == 0, result.output
+    assert "Saved 1 documents, 1 chunks" in result.stdout
+    assert "Bedrock response" not in result.stderr
+    assert "Requesting 1 Bedrock embeddings" not in result.stderr
+    assert "Index ready:" not in result.stderr
+    assert "\x1b" not in result.stderr
+
+    default_log = settings.index_path.parent.parent / "logs" / "oracle-ingest.log"
+    assert default_log.is_file()
+    log_text = default_log.read_text(encoding="utf-8")
+    assert "Requesting 1 Bedrock embeddings" in log_text
+    assert "Embedding finished: passages=1 tokens_in=12" in log_text
+    assert str(default_log) in result.stderr
+
+    explicit_log = tmp_path / "custom-ingest.log"
+    result_explicit = runner.invoke(
+        cli.app,
+        [
+            "--config",
+            str(settings.path),
+            "--log-file",
+            str(explicit_log),
+            "--log-level",
+            "DEBUG",
+            "ingest",
+            str(docs),
+        ],
+    )
+    assert result_explicit.exit_code == 0, result_explicit.output
+    assert "Bedrock response: model=" in explicit_log.read_text(encoding="utf-8")
+    # Reset root logging to stderr for subsequent tests
+    cli.setup_logging(settings=settings)
+
+
+def test_ingest_debug_streams_logs_in_terminal(
+    settings: Settings, tmp_path: Path, monkeypatch
+) -> None:
+    import logging
+
+    from configs.configs import AiProviderConfig
+    from embeddings.embeddings import BaseEmbedding
+
+    class DebugEmbedding(BaseEmbedding):
+        provider_name = "Bedrock"
+        dimensions = 256
+        model = "amazon.titan-embed-text-v2:0"
+
+        def __init__(self, config: AiProviderConfig) -> None:
+            self._config = config
+
+        def _embed_one(self, text: str) -> list[float]:
+            self.usage.record(tokens_in=5)
+            logging.getLogger("embeddings.bedrock").debug(
+                "Bedrock response: model=%s tokens_in=5", self.model
+            )
+            vec = [0.0] * self.dimensions
+            vec[0] = 1.0
+            return vec
+
+    monkeypatch.setattr(
+        cli, "create_embedder", lambda **kwargs: DebugEmbedding(settings.provider)
+    )
+    doc = tmp_path / "doc.md"
+    doc.write_text("Debug mode test content.\n")
+
+    result = invoke(settings, "ingest", str(doc), "--debug")
+    assert result.exit_code == 0, result.output
+    assert "Bedrock response: model=" in result.stderr
+    assert "Embedding finished: passages=1 tokens_in=5" in result.stderr
+    cli.setup_logging(settings=settings)
+
+
+def test_plain_and_rich_progress_adapters(capsys, monkeypatch) -> None:
+    import io
+
+    from rich.console import Console
+
+    from runtime.presentation import PlainIngestProgress, RichIngestProgress, wants_live_panel
+    from runtime.progress import StageAdvanced, StageFinished, StageStarted
+
+    non_tty = Console(stderr=True, force_terminal=False)
+    assert not wants_live_panel(non_tty, enabled=True)
+
+    tty = Console(file=io.StringIO(), force_terminal=True, color_system="truecolor")
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("TERM", "xterm-256color")
+    assert wants_live_panel(tty, enabled=True)
+    assert not wants_live_panel(tty, enabled=False)
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert not wants_live_panel(tty, enabled=True)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("TERM", "dumb")
+    assert not wants_live_panel(tty, enabled=True)
+
+    with PlainIngestProgress(non_tty, "Oracle ingest  profile=default", "/tmp/ingest.log") as plain:
+        plain.started(StageStarted("discover", None))
+        plain.advanced(StageAdvanced("discover", 3))
+        plain.finished(StageFinished("discover", 0.2))
+        plain.started(StageStarted("embed", 10))
+        for i in range(1, 11):
+            plain.advanced(StageAdvanced("embed", i, tokens_in=i * 100, retries=1))
+        plain.finished(StageFinished("embed", 1.5))
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "\x1b" not in captured.err
+    assert "[1/4] Discover done: 3 files in 0.2s" in captured.err
+    assert "[4/4] Embed 1/10 (10%)  tokens in: 100" in captured.err
+    assert "[4/4] Embed 10/10 (100%)  tokens in: 1,000" in captured.err
+    assert plain.tokens_in == 1000
+    assert plain.retries == 1
+
+    buf = io.StringIO()
+    rich_console = Console(file=buf, force_terminal=True, width=100)
+    with RichIngestProgress(
+        rich_console, "Oracle ingest  profile=default", "/tmp/ingest.log"
+    ) as live:
+        live.started(StageStarted("discover", None))
+        live.advanced(StageAdvanced("discover", 4))
+        live.finished(StageFinished("discover", 0.1))
+        live.started(StageStarted("embed", 10))
+        live.advanced(StageAdvanced("embed", 5, tokens_in=500, retries=2))
+        rendered = io.StringIO()
+        Console(file=rendered, force_terminal=False, width=100).print(live._render())
+        panel_text = rendered.getvalue()
+        assert "[1/4] Discover" in panel_text
+        assert "4 files" in panel_text
+        assert "[4/4] Embed" in panel_text
+        assert "5/10" in panel_text
+        assert "tokens in: 500   retries: 2   errors: 0" in panel_text
+        live.finished(StageFinished("embed", 1.2))
+
+
+def test_data_download_progress_and_log_routing(
+    settings: Settings, tmp_path: Path, monkeypatch, capsys
+) -> None:
+    import io
+    import logging
+
+    from rich.console import Console
+
+    from data.data import DownloadProgress
+    from runtime.presentation import PlainDownloadProgress, RichDownloadProgress
+
+    target = tmp_path / "data" / "orchard" / "guide.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("Apple guide.\n")
+
+    def fake_download(cfg, ids, *, all_sources=False, force=False, progress=None):
+        logging.getLogger("data.data").info("Downloaded orchard to %s", target)
+        if progress is not None:
+            progress(DownloadProgress(target, 0, 12, 0, 1, "connecting"))
+            progress(DownloadProgress(target, 12, 12, 1, 1, "complete"))
+        return [target]
+
+    monkeypatch.setattr(cli, "download_resources", fake_download)
+    result = invoke(settings, "data", "download", "orchard")
+    assert result.exit_code == 0, result.output
+    assert str(target) in result.stdout
+    assert "Downloaded orchard to" not in result.stderr
+    assert "[1/1] orchard/guide.md downloaded (12 bytes)" in result.stderr
+    assert "Summary: 1 files (12 bytes)" in result.stderr
+    assert "\x1b" not in result.stderr
+    log_file = settings.index_path.parent.parent / "logs" / "oracle-download.log"
+    assert log_file.is_file()
+    assert "Downloaded orchard to" in log_file.read_text(encoding="utf-8")
+
+    result_debug = invoke(settings, "data", "download", "orchard", "--debug")
+    assert result_debug.exit_code == 0, result_debug.output
+    assert "Downloaded orchard to" in result_debug.stderr
+    cli.setup_logging(settings=settings)
+
+    buf = io.StringIO()
+    rich_console = Console(file=buf, force_terminal=True, width=100)
+    with RichDownloadProgress(
+        rich_console, "Oracle data download  sources=orchard", "/tmp/download.log"
+    ) as live_dl:
+        live_dl(DownloadProgress(target, 6, 12, 0, 1, "downloading"))
+        rendered = io.StringIO()
+        Console(file=rendered, force_terminal=False, width=100).print(live_dl._render())
+        panel_text = rendered.getvalue()
+        assert "Oracle data download  sources=orchard" in panel_text
+        assert "0/1 files" in panel_text
+        assert "orchard/guide.md" in panel_text
+        live_dl(DownloadProgress(target, 12, 12, 1, 1, "complete"))
+    assert live_dl.received_bytes == 12
+
+    non_tty = Console(stderr=True, force_terminal=False)
+    with PlainDownloadProgress(non_tty, "Oracle data download", "/tmp/dl.log") as plain_dl:
+        plain_dl(DownloadProgress(target, 12, 12, 1, 1, "cached"))
+    captured = capsys.readouterr()
+    assert "[1/1] orchard/guide.md cached (12 bytes)" in captured.err

@@ -14,6 +14,7 @@ from configs.configs import Settings, load_config
 from documents.chunks import Chunk, DocumentError, load_chunks
 from embeddings.embeddings import Embedder, normalize
 from models.models import IndexStats, Passage, Query, SearchResult, SourceCatalog, SourceInfo
+from runtime.progress import IngestProgress
 from storages.storage import StorageError, StoredIndex, read_index, write_index
 
 logger = logging.getLogger(__name__)
@@ -53,8 +54,10 @@ class MemoryIndex:
             sources=sources,
         )
 
-    def load(self, path: Path, recursive: bool = False) -> IndexStats:
-        return self.build(load_chunks(path, recursive, self.settings))
+    def load(
+        self, path: Path, recursive: bool = False, *, progress: IngestProgress | None = None
+    ) -> IndexStats:
+        return self.build(load_chunks(path, recursive, self.settings, progress), progress=progress)
 
     def fetch(self, passage_id: str) -> Chunk:
         """Read an indexed passage by identity, without embedding or searching."""
@@ -135,14 +138,22 @@ class MemoryIndex:
         for chunk in chunks:
             logger.debug("Indexed passage: source=%s content=%r", chunk.citation, chunk.text)
 
-    def build(self, chunks: list[Chunk]) -> IndexStats:
+    def build(
+        self, chunks: list[Chunk], *, progress: IngestProgress | None = None
+    ) -> IndexStats:
         if not chunks:
             raise DocumentError("Cannot build an index without document text.")
         started = perf_counter()
         with self._write_lock:
             texts = [f"{chunk.title}\n{chunk.text}" for chunk in chunks]
+            # Third-party embedders without the keyword keep working when no progress is requested.
+            embedded = (
+                self._embedder.embed(texts)
+                if progress is None
+                else self._embedder.embed(texts, progress=progress)
+            )
             vectors = normalize(
-                self._embedder.embed(texts),
+                embedded,
                 len(chunks),
                 self._embedder.dimensions,
             )
