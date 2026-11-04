@@ -884,6 +884,852 @@
           "url": "https://ruslanspivak.com/lsbasi-part14/"
         }
       ]
+    },
+    {
+      "id": "itil-public-foundations",
+      "title": "ITIL Version 5 — Public Overview and Transition FAQ",
+      "source": "https://www.peoplecert.org/help-and-support/faq-itil",
+      "author": "PeopleCert",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Public orientation only. Does not replace licensed ITIL Foundation or practice guides; obtain those separately through PeopleCert.",
+      "downloads": [
+        {
+          "filename": "itil-version-5.html",
+          "url": "https://www.peoplecert.org/news-and-announcements/itil-version-5-explained"
+        },
+        {
+          "filename": "itil-faq.html",
+          "url": "https://www.peoplecert.org/help-and-support/faq-itil"
+        }
+      ]
+    },
+    {
+      "id": "sre-operations",
+      "title": "Site Reliability Engineering — Selected Operational Chapters",
+      "source": "https://sre.google/sre-book/table-of-contents/",
+      "author": "Google",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Selected substantive chapters on SLOs, monitoring, incidents, postmortems, overload and cascading failures; not the whole book.",
+      "downloads": [
+        {
+          "filename": "service-level-objectives.html",
+          "url": "https://sre.google/sre-book/service-level-objectives/"
+        },
+        {
+          "filename": "monitoring-distributed-systems.html",
+          "url": "https://sre.google/sre-book/monitoring-distributed-systems/"
+        },
+        {
+          "filename": "managing-incidents.html",
+          "url": "https://sre.google/sre-book/managing-incidents/"
+        },
+        {
+          "filename": "postmortem-culture.html",
+          "url": "https://sre.google/sre-book/postmortem-culture/"
+        },
+        {
+          "filename": "handling-overload.html",
+          "url": "https://sre.google/sre-book/handling-overload/"
+        },
+        {
+          "filename": "cascading-failures.html",
+          "url": "https://sre.google/sre-book/addressing-cascading-failures/"
+        }
+      ]
+    },
+    {
+      "id": "nist-security-foundations",
+      "title": "NIST — Cybersecurity, Secure Development, Zero Trust and AI Security",
+      "source": "https://csrc.nist.gov/projects/ssdf",
+      "author": "NIST",
+      "license": "NIST publication terms apply; see each publication.",
+      "note": "Versioned publications: CSF 2.0, SP 800-218 (SSDF 1.1), SP 800-207 and SP 800-218A. Check NIST for revisions before normative use.",
+      "downloads": [
+        {
+          "filename": "nist-csf-2.0.pdf",
+          "url": "https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf"
+        },
+        {
+          "filename": "nist-ssdf-1.1.pdf",
+          "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf"
+        },
+        {
+          "filename": "nist-zero-trust.pdf",
+          "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-207.pdf"
+        },
+        {
+          "filename": "nist-ai-ssdf-profile.pdf",
+          "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218A.pdf"
+        }
+      ]
+    },
+    {
+      "id": "owasp-security-practice",
+      "title": "OWASP — Testing, Threat Modeling, Secrets and TLS",
+      "source": "https://cheatsheetseries.owasp.org/",
+      "author": "OWASP Foundation and contributors",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Selected technical material. WSTG v4.2 methodology and testing principles plus security engineering cheat sheets.",
+      "downloads": [
+        {
+          "filename": "security-testing-introduction.html",
+          "url": "https://owasp.org/www-project-web-security-testing-guide/v42/2-Introduction/"
+        },
+        {
+          "filename": "testing-framework.html",
+          "url": "https://owasp.org/www-project-web-security-testing-guide/v42/3-The_OWASP_Testing_Framework/0-The_Web_Security_Testing_Framework"
+        },
+        {
+          "filename": "threat-modeling.html",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html"
+        },
+        {
+          "filename": "secrets-management.html",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+        },
+        {
+          "filename": "tls-security.html",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"
+        }
+      ]
+    },
+    {
+      "id": "networking-dordal",
+      "title": "An Introduction to Computer Networks — Full Textbook",
+      "source": "https://intronetworks.cs.luc.edu/",
+      "author": "Peter L. Dordal",
+      "license": "See author's Creative Commons license and edition notice.",
+      "note": "Author-hosted networking textbook: Ethernet, IP, routing, transport and network analysis.",
+      "downloads": [
+        {
+          "filename": "introduction-computer-networks.pdf",
+          "url": "https://intronetworks.cs.luc.edu/current2/ComputerNetworks.pdf"
+        }
+      ]
+    },
+    {
+      "id": "network-protocol-rfcs",
+      "title": "Networking Protocol Specifications — TCP, DNS, HTTP and QUIC",
+      "source": "https://www.rfc-editor.org/",
+      "author": "IETF RFC authors",
+      "license": "IETF Trust Legal Provisions; see each RFC.",
+      "note": "Primary protocol references. DNS RFCs 1034/1035 are foundational and have updates; HTTP RFC 9110, TCP RFC 9293, QUIC RFC 9000.",
+      "downloads": [
+        {
+          "filename": "rfc9293-tcp.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc9293.txt"
+        },
+        {
+          "filename": "rfc1034-dns-concepts.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc1034.txt"
+        },
+        {
+          "filename": "rfc1035-dns-implementation.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc1035.txt"
+        },
+        {
+          "filename": "rfc9110-http-semantics.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc9110.txt"
+        },
+        {
+          "filename": "rfc9000-quic.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc9000.txt"
+        }
+      ]
+    },
+    {
+      "id": "tls-certificates-rfcs",
+      "title": "TLS and Certificate Automation — TLS 1.3, BCP and ACME",
+      "source": "https://www.rfc-editor.org/",
+      "author": "IETF RFC authors",
+      "license": "IETF Trust Legal Provisions; see each RFC.",
+      "note": "Modern TLS foundation: RFC 8446, RFC 9325 and RFC 8555. SSL is historical terminology; prefer TLS.",
+      "downloads": [
+        {
+          "filename": "rfc8446-tls13.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc8446.txt"
+        },
+        {
+          "filename": "rfc9325-tls-recommendations.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc9325.txt"
+        },
+        {
+          "filename": "rfc8555-acme.txt",
+          "url": "https://www.rfc-editor.org/rfc/rfc8555.txt"
+        }
+      ]
+    },
+    {
+      "id": "load-balancing",
+      "title": "Load Balancing — Google SRE, NGINX and HAProxy",
+      "source": "https://sre.google/sre-book/load-balancing-frontend/",
+      "author": "Google; NGINX; HAProxy contributors",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "L4/L7 traffic distribution, frontend/datacenter balancing, health checks and practical proxy configuration. HAProxy manual pinned to 3.2.",
+      "downloads": [
+        {
+          "filename": "sre-frontend-balancing.html",
+          "url": "https://sre.google/sre-book/load-balancing-frontend/"
+        },
+        {
+          "filename": "sre-datacenter-balancing.html",
+          "url": "https://sre.google/sre-book/load-balancing-datacenter/"
+        },
+        {
+          "filename": "nginx-http-load-balancing.html",
+          "url": "https://nginx.org/en/docs/http/load_balancing.html"
+        },
+        {
+          "filename": "haproxy-3.2-configuration.txt",
+          "url": "https://www.haproxy.org/download/3.2/doc/configuration.txt"
+        }
+      ]
+    },
+    {
+      "id": "wireshark-packet-analysis",
+      "title": "Wireshark — Full User Guide, TShark and Display Filters",
+      "source": "https://www.wireshark.org/docs/",
+      "author": "Wireshark Foundation and contributors",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Full one-page user guide, TShark manual and filter-language reference; no packet capture performed.",
+      "downloads": [
+        {
+          "filename": "wireshark-user-guide.html",
+          "url": "https://www.wireshark.org/docs/wsug_html/"
+        },
+        {
+          "filename": "tshark.html",
+          "url": "https://www.wireshark.org/docs/man-pages/tshark.html"
+        },
+        {
+          "filename": "wireshark-filter.html",
+          "url": "https://www.wireshark.org/docs/man-pages/wireshark-filter.html"
+        }
+      ]
+    },
+    {
+      "id": "nmap-network-scanning",
+      "title": "Nmap — Discovery, Scanning, Service Detection and NSE",
+      "source": "https://nmap.org/book/man.html",
+      "author": "Gordon Lyon and Nmap contributors",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Selected official reference sections, not a claim to include the entire paid book. Documentation only; no scans performed.",
+      "downloads": [
+        {
+          "filename": "host-discovery.html",
+          "url": "https://nmap.org/book/man-host-discovery.html"
+        },
+        {
+          "filename": "port-scanning.html",
+          "url": "https://nmap.org/book/man-port-scanning-techniques.html"
+        },
+        {
+          "filename": "version-detection.html",
+          "url": "https://nmap.org/book/man-version-detection.html"
+        },
+        {
+          "filename": "os-detection.html",
+          "url": "https://nmap.org/book/man-os-detection.html"
+        },
+        {
+          "filename": "nse.html",
+          "url": "https://nmap.org/book/man-nse.html"
+        },
+        {
+          "filename": "output.html",
+          "url": "https://nmap.org/book/man-output.html"
+        }
+      ]
+    },
+    {
+      "id": "microservices-patterns",
+      "title": "Microservices — Architecture, Sagas, Outbox and Resilience",
+      "source": "https://microservices.io/patterns/microservices.html",
+      "author": "Chris Richardson",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Author's pattern catalog selections: architecture, distributed transactions, reliable messaging and failure isolation.",
+      "downloads": [
+        {
+          "filename": "microservice-architecture.html",
+          "url": "https://microservices.io/patterns/microservices.html"
+        },
+        {
+          "filename": "saga.html",
+          "url": "https://microservices.io/patterns/data/saga.html"
+        },
+        {
+          "filename": "transactional-outbox.html",
+          "url": "https://microservices.io/patterns/data/transactional-outbox.html"
+        },
+        {
+          "filename": "circuit-breaker.html",
+          "url": "https://microservices.io/patterns/reliability/circuit-breaker.html"
+        },
+        {
+          "filename": "api-gateway.html",
+          "url": "https://microservices.io/patterns/apigateway.html"
+        }
+      ]
+    },
+    {
+      "id": "terraform-iac",
+      "title": "Terraform — State, Lifecycle, Modules and Infrastructure Tests",
+      "source": "https://developer.hashicorp.com/terraform/language",
+      "author": "HashiCorp",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Selected official documentation; floating pages should be checked against the installed Terraform version.",
+      "downloads": [
+        {
+          "filename": "state.html",
+          "url": "https://developer.hashicorp.com/terraform/language/state"
+        },
+        {
+          "filename": "remote-state.html",
+          "url": "https://developer.hashicorp.com/terraform/language/state/remote"
+        },
+        {
+          "filename": "lifecycle.html",
+          "url": "https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle"
+        },
+        {
+          "filename": "modules.html",
+          "url": "https://developer.hashicorp.com/terraform/language/modules/develop"
+        },
+        {
+          "filename": "tests.html",
+          "url": "https://developer.hashicorp.com/terraform/language/tests"
+        }
+      ]
+    },
+    {
+      "id": "ansible-configuration-management",
+      "title": "Ansible — Playbooks, Roles and Check/Diff Mode",
+      "source": "https://docs.ansible.com/projects/ansible/latest/playbook_guide/index.html",
+      "author": "Ansible community",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Official Ansible documentation source (RST), selected to avoid rate-limited rendered pages. Moving devel branch; check applicability to your installed Ansible version.",
+      "downloads": [
+        {
+          "filename": "playbooks_intro.rst",
+          "url": "https://raw.githubusercontent.com/ansible/ansible-documentation/devel/docs/docsite/rst/playbook_guide/playbooks_intro.rst"
+        },
+        {
+          "filename": "playbooks_reuse_roles.rst",
+          "url": "https://raw.githubusercontent.com/ansible/ansible-documentation/devel/docs/docsite/rst/playbook_guide/playbooks_reuse_roles.rst"
+        },
+        {
+          "filename": "playbooks_checkmode.rst",
+          "url": "https://raw.githubusercontent.com/ansible/ansible-documentation/devel/docs/docsite/rst/playbook_guide/playbooks_checkmode.rst"
+        }
+      ]
+    },
+    {
+      "id": "gitops-principles",
+      "title": "OpenGitOps — Desired State and Continuous Reconciliation",
+      "source": "https://opengitops.dev/",
+      "author": "OpenGitOps contributors",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "The four GitOps principles: declarative, versioned/immutable, pulled automatically and continuously reconciled.",
+      "downloads": [
+        {
+          "filename": "gitops-principles.html",
+          "url": "https://opengitops.dev/"
+        }
+      ]
+    },
+    {
+      "id": "transformer-attention",
+      "title": "Attention Is All You Need",
+      "source": "https://arxiv.org/abs/1706.03762",
+      "author": "Vaswani et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Transformer architecture and attention; foundational research.",
+      "downloads": [
+        {
+          "filename": "transformer-attention.pdf",
+          "url": "https://arxiv.org/pdf/1706.03762"
+        }
+      ]
+    },
+    {
+      "id": "compute-optimal-training",
+      "title": "Training Compute-Optimal Large Language Models",
+      "source": "https://arxiv.org/abs/2203.15556",
+      "author": "Hoffmann et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Model/data/compute tradeoffs; Chinchilla experiments.",
+      "downloads": [
+        {
+          "filename": "compute-optimal-training.pdf",
+          "url": "https://arxiv.org/pdf/2203.15556"
+        }
+      ]
+    },
+    {
+      "id": "lora-adaptation",
+      "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+      "source": "https://arxiv.org/abs/2106.09685",
+      "author": "Hu et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Parameter-efficient fine-tuning; frozen base weights and low-rank updates.",
+      "downloads": [
+        {
+          "filename": "lora-adaptation.pdf",
+          "url": "https://arxiv.org/pdf/2106.09685"
+        }
+      ]
+    },
+    {
+      "id": "instructgpt-rlhf",
+      "title": "Training Language Models to Follow Instructions with Human Feedback",
+      "source": "https://arxiv.org/abs/2203.02155",
+      "author": "Ouyang et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Supervised instruction tuning and RLHF.",
+      "downloads": [
+        {
+          "filename": "instructgpt-rlhf.pdf",
+          "url": "https://arxiv.org/pdf/2203.02155"
+        }
+      ]
+    },
+    {
+      "id": "dpo-preference-training",
+      "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+      "source": "https://arxiv.org/abs/2305.18290",
+      "author": "Rafailov et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Preference optimization without a separate RL training loop.",
+      "downloads": [
+        {
+          "filename": "dpo-preference-training.pdf",
+          "url": "https://arxiv.org/pdf/2305.18290"
+        }
+      ]
+    },
+    {
+      "id": "deepseek-r1-reasoning",
+      "title": "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning",
+      "source": "https://arxiv.org/abs/2501.12948",
+      "author": "DeepSeek-AI et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Reasoning post-training research; results are specific to reported experiments.",
+      "downloads": [
+        {
+          "filename": "deepseek-r1-reasoning.pdf",
+          "url": "https://arxiv.org/pdf/2501.12948"
+        }
+      ]
+    },
+    {
+      "id": "zero-distributed-training",
+      "title": "ZeRO: Memory Optimizations Toward Training Trillion Parameter Models",
+      "source": "https://arxiv.org/abs/1910.02054",
+      "author": "Rajbhandari et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Optimizer, gradient and parameter partitioning for distributed training.",
+      "downloads": [
+        {
+          "filename": "zero-distributed-training.pdf",
+          "url": "https://arxiv.org/pdf/1910.02054"
+        }
+      ]
+    },
+    {
+      "id": "vllm-paged-attention",
+      "title": "Efficient Memory Management for Large Language Model Serving with PagedAttention",
+      "source": "https://arxiv.org/abs/2309.06180",
+      "author": "Kwon et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Inference-serving memory management and throughput; systems research.",
+      "downloads": [
+        {
+          "filename": "vllm-paged-attention.pdf",
+          "url": "https://arxiv.org/pdf/2309.06180"
+        }
+      ]
+    },
+    {
+      "id": "jev-independent-evaluation",
+      "title": "Evaluating and Benchmarking the System One Model Jev",
+      "source": "https://arxiv.org/abs/2609.37647",
+      "author": "Deusser et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Independent Jev evaluation; recent preprint, not a vendor training specification.",
+      "downloads": [
+        {
+          "filename": "jev-independent-evaluation.pdf",
+          "url": "https://arxiv.org/pdf/2609.37647"
+        }
+      ]
+    },
+    {
+      "id": "secjev-security-models",
+      "title": "SecJev: Bringing Security Expertise to System One Decision Models",
+      "source": "https://arxiv.org/abs/2610.03073",
+      "author": "Chen et al.",
+      "license": "See the paper's arXiv license; public access does not imply unrestricted redistribution.",
+      "note": "Security-specialized Jev-style decision models; distinct from proprietary Jev; recent preprint.",
+      "downloads": [
+        {
+          "filename": "secjev-security-models.pdf",
+          "url": "https://arxiv.org/pdf/2610.03073"
+        }
+      ]
+    },
+    {
+      "id": "jev-system-one-docs",
+      "title": "TypeSafe Jev — System One Concepts, Primitives and Calibration",
+      "source": "https://docs.typesafe.ai/introduction",
+      "author": "TypeSafe AI",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "First-party interface and uncertainty guidance. Vendor claims are not independent validation or a reproducible training recipe.",
+      "downloads": [
+        {
+          "filename": "introduction.html",
+          "url": "https://docs.typesafe.ai/introduction"
+        },
+        {
+          "filename": "system-one.html",
+          "url": "https://docs.typesafe.ai/concepts/system-one"
+        },
+        {
+          "filename": "launch.html",
+          "url": "https://typesafe.ai/blog/introducing-system-one-models-and-jev"
+        }
+      ]
+    },
+    {
+      "id": "frontend-mdn",
+      "title": "MDN — HTML Semantics, CSS Layout and JavaScript Browser APIs",
+      "source": "https://developer.mozilla.org/en-US/docs/Learn_web_development",
+      "author": "MDN contributors",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Selected substantive guides, not recursive mirrors of the MDN website.",
+      "downloads": [
+        {
+          "filename": "html-basics.html",
+          "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/Basic_HTML_syntax"
+        },
+        {
+          "filename": "css-basics.html",
+          "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/What_is_CSS"
+        },
+        {
+          "filename": "flexbox.html",
+          "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Flexbox"
+        },
+        {
+          "filename": "grid.html",
+          "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Grids"
+        },
+        {
+          "filename": "responsive-design.html",
+          "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Responsive_Design"
+        },
+        {
+          "filename": "dom.html",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Introduction"
+        },
+        {
+          "filename": "fetch.html",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch"
+        }
+      ]
+    },
+    {
+      "id": "eloquent-javascript",
+      "title": "Eloquent JavaScript — Fourth Edition (2024), Full Book",
+      "source": "https://eloquentjavascript.net/",
+      "author": "Marijn Haverbeke",
+      "license": "CC BY-NC 3.0 for book text; code additionally MIT; see author's license.",
+      "note": "JavaScript language, asynchronous programming, browser DOM/events/forms and Node.js; full author-hosted PDF.",
+      "downloads": [
+        {
+          "filename": "eloquent-javascript-4e.pdf",
+          "url": "https://eloquentjavascript.net/Eloquent_JavaScript.pdf"
+        }
+      ]
+    },
+    {
+      "id": "web-design-accessibility",
+      "title": "Web Design — Typography, Color, Accessibility and Responsive Design",
+      "source": "https://web.dev/learn/design",
+      "author": "Google web.dev; W3C WAI",
+      "license": "Publisher terms apply; public first-party documentation.",
+      "note": "Visual and interaction fundamentals beyond HTML/CSS syntax; selected design lessons and accessibility guidance.",
+      "downloads": [
+        {
+          "filename": "typography.html",
+          "url": "https://web.dev/learn/design/typography"
+        },
+        {
+          "filename": "color.html",
+          "url": "https://web.dev/learn/css/color"
+        },
+        {
+          "filename": "responsive.html",
+          "url": "https://web.dev/articles/responsive-web-design-basics"
+        },
+        {
+          "filename": "accessibility-principles.html",
+          "url": "https://www.w3.org/WAI/fundamentals/accessibility-principles/"
+        },
+        {
+          "filename": "forms.html",
+          "url": "https://www.w3.org/WAI/tutorials/forms/"
+        }
+      ]
+    },
+    {
+      "id": "deep-learning-d2l",
+      "title": "Dive into Deep Learning — Full Textbook (1.0.3)",
+      "source": "https://d2l.ai/",
+      "author": "Aston Zhang, Zachary C. Lipton, Mu Li and Alexander J. Smola",
+      "license": "See author site for CC BY-SA book text and Apache-2.0 code terms.",
+      "note": "Mathematics, automatic differentiation, optimization, neural networks, attention, transformers and practical training. Full textbook; substantial ingestion volume.",
+      "downloads": [
+        {
+          "filename": "dive-into-deep-learning.pdf",
+          "url": "https://d2l.ai/d2l-en.pdf"
+        }
+      ]
+    },
+    {
+      "id": "neural-network-calibration",
+      "title": "On Calibration of Modern Neural Networks (ICML 2017)",
+      "source": "https://proceedings.mlr.press/v70/guo17a.html",
+      "author": "Chuan Guo, Geoff Pleiss, Yu Sun and Kilian Q. Weinberger",
+      "license": "See PMLR publication license.",
+      "note": "Calibration foundations and temperature scaling; relevant to evaluating decision-model probabilities.",
+      "downloads": [
+        {
+          "filename": "neural-network-calibration.pdf",
+          "url": "https://proceedings.mlr.press/v70/guo17a/guo17a.pdf"
+        }
+      ]
+    },
+    {
+      "id": "linux-lpic1-administration",
+      "title": "Linux Administration — LPI LPIC-1 Exams 101-500 and 102-500",
+      "source": "https://learning.lpi.org/en/learning-materials/101-500/",
+      "author": "Linux Professional Institute and contributors",
+      "license": "See LPI learning-material licenses and attribution in each PDF.",
+      "note": "Official full learning PDFs for LPIC-1 exam version 5.0: system architecture, installation/packages, GNU/Unix commands, filesystems, shells, scripting, administration, essential services, networking and security. Check version-specific commands against your distribution.",
+      "downloads": [
+        {
+          "filename": "lpic1-101-500-en.pdf",
+          "url": "https://learning.lpi.org/pdfstore/LPI-Learning-Material-101-500-en.pdf"
+        },
+        {
+          "filename": "lpic1-102-500-en.pdf",
+          "url": "https://learning.lpi.org/pdfstore/LPI-Learning-Material-102-500-en.pdf"
+        }
+      ]
+    },
+    {
+      "id": "unix-freebsd-handbook",
+      "title": "FreeBSD Handbook — Full English PDF",
+      "source": "https://docs.freebsd.org/en/books/handbook/",
+      "author": "The FreeBSD Documentation Project",
+      "license": "FreeBSD documentation license; see handbook copyright and license.",
+      "note": "Unix-family administration: installation, users, permissions, shells, storage, networking, services, security and jails. FreeBSD is a specific Unix-like system; its commands and service conventions do not universally apply to Linux, macOS or other Unix systems. Rolling PDF snapshot.",
+      "downloads": [
+        {
+          "filename": "freebsd-handbook-en.pdf",
+          "url": "https://download.freebsd.org/doc/handbook/handbook_en.pdf"
+        }
+      ]
+    },
+    {
+      "id": "windows-commands-reference",
+      "title": "Windows Commands Reference — Microsoft WS16 PDF",
+      "source": "https://www.microsoft.com/en-us/download/details.aspx?id=56846",
+      "author": "Microsoft",
+      "license": "Microsoft documentation/download terms apply.",
+      "note": "Official Windows command-shell reference. Download page lists WS16, published 2024-07-15, with supported systems through Windows Server 2016. Historical command reference, not complete current Windows Server administration or PowerShell documentation.",
+      "downloads": [
+        {
+          "filename": "windows-commands-ws16.pdf",
+          "url": "https://download.microsoft.com/download/5/8/9/58911986-d4ad-4695-bf63-f734cd4df8f2/ws-commands.pdf"
+        }
+      ]
+    },
+    {
+      "id": "powershell-reference",
+      "title": "PowerShell — Notes for Professionals PDF and Microsoft 7.5 Guidance",
+      "source": "https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.5",
+      "author": "Stack Overflow Documentation contributors (compiled by GoalKicker); Microsoft",
+      "license": "Community PDF text: CC BY-SA per publisher, with separate image rights; Microsoft pages: Microsoft documentation terms.",
+      "note": "The community PDF was published May 2019 and includes legacy Windows PowerShell features. Pair it with Microsoft documentation for PowerShell 7.5, object pipelines, and differences from Windows PowerShell 5.1. Do not treat the PDF as a current compatibility specification.",
+      "downloads": [
+        {
+          "filename": "powershell-notes-2019.pdf",
+          "url": "https://books.goalkicker.com/PowerShellBook/PowerShellNotesForProfessionals.pdf"
+        },
+        {
+          "filename": "powershell101-introduction.html",
+          "url": "https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/00-introduction?view=powershell-7.5"
+        },
+        {
+          "filename": "powershell-object-pipelines.html",
+          "url": "https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/04-pipelines?view=powershell-7.5"
+        },
+        {
+          "filename": "powershell75-vs-windows-powershell.html",
+          "url": "https://learn.microsoft.com/en-us/powershell/scripting/whats-new/differences-from-windows-powershell?view=powershell-7.5"
+        }
+      ]
+    },
+    {
+      "id": "linux-from-scratch",
+      "title": "Linux From Scratch — 13.1 systemd, Full Book",
+      "author": "Linux From Scratch editors and contributors",
+      "source": "https://www.linuxfromscratch.org/lfs/download.html",
+      "license": "See publisher documentation license and attribution.",
+      "note": "Complete source-built Linux system: host requirements, cross-toolchain, temporary tools, chroot, userland, system configuration, kernel and bootloader. Pinned to systemd release 13.1.",
+      "downloads": [
+        {
+          "filename": "lfs-systemd-13.1.pdf",
+          "url": "https://www.linuxfromscratch.org/lfs/downloads/13.1-systemd/LFS-SYSD-BOOK-13.1.pdf"
+        }
+      ]
+    },
+    {
+      "id": "beyond-linux-from-scratch",
+      "title": "Beyond Linux From Scratch — 13.1 systemd, Full Book",
+      "author": "Beyond Linux From Scratch editors and contributors",
+      "source": "https://www.linuxfromscratch.org/blfs/download.html",
+      "license": "See publisher documentation license and attribution.",
+      "note": "Complete single-page HTML book, not a table of contents: extends LFS with libraries, networking, services, security and applications. The official release directory provides full HTML rather than PDF.",
+      "downloads": [
+        {
+          "filename": "blfs-systemd-13.1.html",
+          "url": "https://www.linuxfromscratch.org/blfs/downloads/13.1-systemd/BLFS-BOOK-13.1-systemd-nochunks.html"
+        }
+      ]
+    },
+    {
+      "id": "buildroot-system-building",
+      "title": "The Buildroot User Manual — Full PDF",
+      "author": "Buildroot developers",
+      "source": "https://buildroot.org/docs.html",
+      "license": "See publisher documentation license and attribution.",
+      "note": "Automating custom Linux images: cross-toolchains, root filesystems, kernel, bootloader, packages and external trees. Particularly relevant to embedded/appliance images. Stable manual is a moving snapshot.",
+      "downloads": [
+        {
+          "filename": "buildroot-manual.pdf",
+          "url": "https://buildroot.org/downloads/manual/manual.pdf"
+        }
+      ]
+    },
+    {
+      "id": "linux-kernel-bootlin",
+      "title": "Linux Kernel and Driver Development — Full Training Slides and Labs",
+      "author": "Bootlin",
+      "source": "https://bootlin.com/training/kernel/",
+      "license": "CC BY-SA 3.0; see each training document.",
+      "note": "Extensive C-oriented kernel development training and exercises. Covers kernel architecture and configuration, modules, interfaces and driver development. Training material rather than a conventional textbook. Practical labs use the BeagleBone Black board; hardware-specific steps need adaptation on other platforms.",
+      "downloads": [
+        {
+          "filename": "linux-kernel-slides.pdf",
+          "url": "https://bootlin.com/doc/training/linux-kernel/linux-kernel-slides.pdf"
+        },
+        {
+          "filename": "linux-kernel-bbb-labs.pdf",
+          "url": "https://bootlin.com/doc/training/linux-kernel/linux-kernel-bbb-labs.pdf"
+        }
+      ]
+    },
+    {
+      "id": "linux-process-system-apis",
+      "title": "Linux Process Control — C/POSIX APIs, Scheduling and Isolation",
+      "author": "Linux man-pages project contributors",
+      "source": "https://man7.org/linux/man-pages/",
+      "license": "See publisher documentation license and attribution.",
+      "note": "Complete selected manual pages for C-level process creation/execution/waiting, signals, threads, scheduling, procfs, namespaces and cgroups. Reference documentation complements textbook explanations.",
+      "downloads": [
+        {
+          "filename": "fork.2.html",
+          "url": "https://man7.org/linux/man-pages/man2/fork.2.html"
+        },
+        {
+          "filename": "execve.2.html",
+          "url": "https://man7.org/linux/man-pages/man2/execve.2.html"
+        },
+        {
+          "filename": "waitpid.2.html",
+          "url": "https://man7.org/linux/man-pages/man2/waitpid.2.html"
+        },
+        {
+          "filename": "signal.7.html",
+          "url": "https://man7.org/linux/man-pages/man7/signal.7.html"
+        },
+        {
+          "filename": "pthreads.7.html",
+          "url": "https://man7.org/linux/man-pages/man7/pthreads.7.html"
+        },
+        {
+          "filename": "sched.7.html",
+          "url": "https://man7.org/linux/man-pages/man7/sched.7.html"
+        },
+        {
+          "filename": "proc.5.html",
+          "url": "https://man7.org/linux/man-pages/man5/proc.5.html"
+        },
+        {
+          "filename": "namespaces.7.html",
+          "url": "https://man7.org/linux/man-pages/man7/namespaces.7.html"
+        },
+        {
+          "filename": "cgroups.7.html",
+          "url": "https://man7.org/linux/man-pages/man7/cgroups.7.html"
+        },
+        {
+          "filename": "pid_namespaces.7.html",
+          "url": "https://man7.org/linux/man-pages/man7/pid_namespaces.7.html"
+        }
+      ]
+    },
+    {
+      "id": "linux-runtime-administration",
+      "title": "Linux Runtime Administration — cgroup v2, Kernel Parameters and systemd",
+      "author": "Linux kernel and systemd contributors",
+      "source": "https://docs.kernel.org/admin-guide/",
+      "license": "See publisher documentation license and attribution.",
+      "note": "Current primary documentation for process resource control, boot/kernel configuration, service management and limits; version applicability must be checked against the running kernel and systemd.",
+      "downloads": [
+        {
+          "filename": "cgroup-v2.html",
+          "url": "https://docs.kernel.org/admin-guide/cgroup-v2.html"
+        },
+        {
+          "filename": "kernel-parameters.html",
+          "url": "https://docs.kernel.org/admin-guide/kernel-parameters.html"
+        },
+        {
+          "filename": "systemd-service.html",
+          "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html"
+        },
+        {
+          "filename": "systemd-resource-control.html",
+          "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html"
+        }
+      ]
+    },
+    {
+      "id": "tlpi-process-creation-sample",
+      "title": "The Linux Programming Interface — Process Creation Sample Chapter",
+      "author": "Michael Kerrisk",
+      "source": "https://man7.org/tlpi/",
+      "license": "Copyright Michael Kerrisk / No Starch Press; publisher-authorized sample, not an open-content license.",
+      "note": "Author-authorized Chapter 24 PDF only. Explains fork and process creation in C. This is NOT the full 1552-page commercial book; the full book remains an acquisition recommendation.",
+      "downloads": [
+        {
+          "filename": "tlpi-ch24-process-creation-sample.pdf",
+          "url": "https://man7.org/tlpi/download/TLPI-24-Process_Creation.pdf"
+        }
+      ]
     }
   ]
 }
