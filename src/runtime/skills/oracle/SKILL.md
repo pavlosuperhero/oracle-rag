@@ -191,8 +191,10 @@ to a rotating file (~/.config/oracle/logs/oracle-ingest.log by default); use
 --no-progress for plain line output without escape sequences, or --debug to
 stream logs in the terminal. Use --index PATH or ORACLE_INDEX consistently
 to select a different file. Each ingestion re-embeds and replaces its database;
-old embeddings are not reused. Without a path, ingest uses registered downloaded
-files in ~/.config/oracle/data/. --src PATH creates a database file
+old embeddings are not reused. Documents are extracted and passages embedded
+concurrently (embedding uses provider.worker parallel requests); chunk and
+vector order stay identical to sequential runs. Without a path, ingest uses
+registered downloaded files in ~/.config/oracle/data/. --src PATH creates a database file
 beside the main one; repeating the same source overwrites only that file.
 serve loads all database .npz files together and starts detached by default;
 wait for its health check to succeed before retrieving. Use oracle serve stop
@@ -229,7 +231,8 @@ not the books currently indexed by the server. oracle data add ID --title TITLE
 oracle data remove ID removes only its entry; cached files remain, but default
 ingestion excludes that removed source. oracle data download ID [ID ...]
 downloads selected entries; --all downloads every entry. Files are stored in
-~/.config/oracle/data/<id>/; no embeddings are generated until ingest. In an
+~/.config/oracle/data/<id>/ and download concurrently (data.download_workers,
+default 4); no embeddings are generated until ingest. In an
 interactive terminal, data download shows a pinned live progress panel on stderr
 and writes INFO/DEBUG logs to ~/.config/oracle/logs/oracle-download.log (use
 --no-progress for plain line output without escape sequences, or --debug to

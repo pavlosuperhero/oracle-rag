@@ -186,9 +186,12 @@ oracle ingest
 The manifest lives at the configured `data.manifest` path and uses a
 `{"resources": [...]}` object, as in this repository's `sources.json`. Downloads
 are stored under `<data.directory>/<source-id>/<filename>`. Existing downloads
-are reused unless `--force` is specified. In an interactive terminal, downloads
-show a pinned live panel on stderr with overall file progress and bytes
-transferred for the current file, while routing `INFO` logs to a rotating file
+are reused unless `--force` is specified. Files download concurrently, at most
+`data.download_workers` at a time (default 4, range 1-16); results and the
+printed paths keep manifest order, and a failed or cancelled transfer never
+leaves a partial file behind. In an interactive terminal, downloads
+show a pinned live panel on stderr with overall file progress and one row of
+bytes transferred per in-flight file, while routing `INFO` logs to a rotating file
 (`~/.config/oracle/logs/oracle-download.log` by default); use `--no-progress`
 (or redirect stderr / set `NO_COLOR`) for plain line output without escape
 sequences, or `--debug` to stream logs in the terminal. Progress is written to
