@@ -19,8 +19,7 @@ from pydantic import ValidationError
 from rich import box
 from rich.console import Console
 from rich.filesize import decimal
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from rich.table import Column, Table
+from rich.table import Table
 from rich.text import Text
 from watchfiles import PythonFilter, run_process
 
@@ -28,7 +27,6 @@ from configs.configs import ConfigError, Settings, load_config
 from data.data import (
     DataError,
     Download,
-    DownloadProgress,
     Resource,
     add_resource,
     download_resources,
@@ -43,7 +41,9 @@ from evaluation.evaluation import EvaluationCase, evaluate_retrieval
 from models.citations import SourceDocument
 from models.models import Query, SearchResult, SourceCatalog
 from runtime.presentation import (
+    PlainDownloadProgress,
     PlainIngestProgress,
+    RichDownloadProgress,
     RichIngestProgress,
     format_duration,
     format_evidence,
@@ -420,66 +420,74 @@ def data_download(
         bool, typer.Option("--all", help="Download every source entry.")
     ] = False,
     force: Annotated[bool, typer.Option(help="Re-download files already present.")] = False,
-    no_progress: Annotated[
-        bool, typer.Option("--no-progress", help="Hide download progress bars.")
+    show_progress: Annotated[
+        bool,
+        typer.Option(
+            "--progress/--no-progress",
+            help="Live progress panel in a terminal; --no-progress prints plain lines to stderr.",
+        ),
+    ] = True,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            "--debug",
+            help="Stream logs in the terminal instead of the panel (DEBUG unless --log-level).",
+        ),
     ] = False,
 ) -> None:
     """Download all or selected source entries; no ingestion or embedding calls."""
+    settings: Settings = ctx.obj
+    console = Console(stderr=True)
+    root_ctx = ctx.find_root()
+    inherited = root_ctx.params if root_ctx else {}
+    explicit_level = inherited.get("log_level")
+    level_name = (
+        explicit_level.value
+        if isinstance(explicit_level, LogLevel)
+        else explicit_level
+        if isinstance(explicit_level, str)
+        else ("DEBUG" if debug else None)
+    )
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn(
-                "{task.description}",
-                markup=False,
-                table_column=Column(max_width=24, no_wrap=True, overflow="ellipsis"),
-            ),
-            BarColumn(),
-            TextColumn("{task.fields[detail]}", markup=False),
-            TimeElapsedColumn(),
-            console=Console(stderr=True),
-            disable=no_progress,
-            redirect_stdout=False,
-        ) as display:
-            overall = display.add_task("Files", total=None, detail="Preparing…")
-            current = display.add_task("Current file", total=None, detail="Waiting…")
-            active: Path | None = None
-
-            def update(event: DownloadProgress) -> None:
-                nonlocal active
-                if active != event.path:
-                    display.reset(current, total=event.total)
-                    active = event.path
-                detail = f"{decimal(event.received)} / "
-                detail += decimal(event.total) if event.total is not None else "unknown size"
-                if event.status == "connecting":
-                    detail = "Connecting…"
-                elif event.status == "cached":
-                    detail = f"Cached ({decimal(event.received)})"
-                display.update(
-                    overall,
-                    total=event.total_files,
-                    completed=event.completed_files,
-                    detail=f"{event.completed_files}/{event.total_files} files",
-                )
-                display.update(
-                    current,
-                    description=f"{event.path.parent.name}/{event.path.name}",
-                    total=event.total,
-                    completed=event.received,
-                    detail=detail,
-                )
-
+        log_path = setup_logging(
+            level_name,
+            inherited.get("log_file"),
+            settings,
+            terminal_level=None if debug else "WARNING",
+            console=None if debug else console,
+            default_log_file=settings.index_path.parent.parent / "logs" / "oracle-download.log",
+        )
+    except OSError as exc:
+        fail(exc)
+    scope = "all sources" if all_sources else ", ".join(resource_ids or ()) or "none"
+    header = f"Oracle data download  sources={scope}  directory={settings.data_path}"
+    log_text = str(log_path) if log_path else None
+    tracker: RichDownloadProgress | PlainDownloadProgress = (
+        RichDownloadProgress(console, header, log_text)
+        if not debug and wants_live_panel(console, show_progress)
+        else PlainDownloadProgress(console, header, log_text)
+    )
+    started = perf_counter()
+    try:
+        with tracker:
             paths = download_resources(
-                ctx.obj,
+                settings,
                 resource_ids or [],
                 all_sources=all_sources,
                 force=force,
-                progress=update,
+                progress=tracker,
             )
     except (DataError, OSError) as exc:
         fail(exc)
     for path in paths:
         typer.echo(str(path))
+    summary = (
+        f"Summary: {len(paths)} files ({decimal(tracker.received_bytes)}) "
+        f"in {format_duration(perf_counter() - started)}"
+    )
+    console.print(summary, markup=False, highlight=False, soft_wrap=True)
+    if log_text:
+        console.print(f"Log file: {log_text}", markup=False, highlight=False, soft_wrap=True)
 
 
 def _background_python_executable() -> str:

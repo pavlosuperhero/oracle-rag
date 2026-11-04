@@ -3,6 +3,7 @@
 import os
 from dataclasses import dataclass
 from html import escape
+from pathlib import Path
 from time import monotonic
 from types import TracebackType
 from typing import Self
@@ -10,20 +11,24 @@ from urllib.parse import quote
 from xml.etree.ElementTree import Element, SubElement, indent, tostring
 
 from rich.console import Console, Group, RenderableType
+from rich.filesize import decimal
 from rich.live import Live
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
     Progress,
     ProgressColumn,
+    SpinnerColumn,
     Task,
     TaskProgressColumn,
     TextColumn,
+    TimeElapsedColumn,
     TimeRemainingColumn,
 )
-from rich.table import Table
+from rich.table import Column, Table
 from rich.text import Text
 
+from data.data import DownloadProgress
 from documents.chunks import Chunk
 from models.citations import SourceDocument
 from models.models import SearchResult
@@ -238,6 +243,125 @@ class PlainIngestProgress(TotalsRecorder):
         self._print(
             f"{stage_prefix(event.stage)} done: {self._completed.get(event.stage, 0):,} {unit} "
             f"in {format_duration(event.elapsed)}"
+        )
+
+
+class RichDownloadProgress:
+    """Pinned live download progress panel for interactive terminals."""
+
+    def __init__(self, console: Console, header: str, log_path: str | None = None) -> None:
+        self._console = console
+        self._header = header
+        self._log_path = log_path
+        self._progress = Progress(
+            SpinnerColumn(),
+            TextColumn(
+                "{task.description}",
+                markup=False,
+                table_column=Column(width=28, no_wrap=True, overflow="ellipsis"),
+            ),
+            BarColumn(bar_width=24),
+            TextColumn("{task.fields[detail]}", markup=False),
+            TimeElapsedColumn(),
+            console=console,
+            auto_refresh=False,
+        )
+        self._overall = self._progress.add_task("Files", total=None, detail="Preparing…")
+        self._current = self._progress.add_task("Current file", total=None, detail="Waiting…")
+        self._active: Path | None = None
+        self._live = Live(
+            get_renderable=self._render, console=console, refresh_per_second=8, transient=True
+        )
+        self.received_bytes = 0
+        self.completed_files = 0
+        self.total_files = 0
+
+    def __enter__(self) -> Self:
+        self._live.start()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self._live.stop()
+
+    def __call__(self, event: DownloadProgress) -> None:
+        if self._active != event.path:
+            self._progress.reset(self._current, total=event.total)
+            self._active = event.path
+        if event.status in {"cached", "complete"}:
+            self.received_bytes += event.received
+        self.completed_files = event.completed_files
+        self.total_files = event.total_files
+        detail = f"{decimal(event.received)} / "
+        detail += decimal(event.total) if event.total is not None else "unknown size"
+        if event.status == "connecting":
+            detail = "Connecting…"
+        elif event.status == "cached":
+            detail = f"Cached ({decimal(event.received)})"
+        self._progress.update(
+            self._overall,
+            total=event.total_files,
+            completed=event.completed_files,
+            detail=f"{event.completed_files}/{event.total_files} files",
+        )
+        self._progress.update(
+            self._current,
+            description=f"{event.path.parent.name}/{event.path.name}",
+            total=event.total,
+            completed=event.received,
+            detail=detail,
+        )
+
+    def _render(self) -> RenderableType:
+        lines: list[RenderableType] = [Text(self._header, style="bold"), self._progress]
+        if self._log_path:
+            lines.append(Text(f"Log file: {self._log_path}", style="dim"))
+        return Group(*lines)
+
+
+class PlainDownloadProgress:
+    """Line-per-file download progress without control characters for non-TTYs and CI."""
+
+    def __init__(self, console: Console, header: str, log_path: str | None = None) -> None:
+        self._console = console
+        self._header = header
+        self._log_path = log_path
+        self.received_bytes = 0
+        self.completed_files = 0
+        self.total_files = 0
+
+    def __enter__(self) -> Self:
+        self._print(self._header)
+        if self._log_path:
+            self._print(f"Log file: {self._log_path}")
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        return None
+
+    def _print(self, line: str) -> None:
+        self._console.print(line, markup=False, highlight=False, soft_wrap=True)
+
+    def __call__(self, event: DownloadProgress) -> None:
+        self.completed_files = event.completed_files
+        self.total_files = event.total_files
+        if event.status not in {"cached", "complete"}:
+            return
+        self.received_bytes += event.received
+        name = f"{event.path.parent.name}/{event.path.name}"
+        label = "cached" if event.status == "cached" else "downloaded"
+        self._print(
+            f"[{event.completed_files}/{event.total_files}] {name} "
+            f"{label} ({decimal(event.received)})"
         )
 
 

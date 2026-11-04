@@ -186,10 +186,13 @@ oracle ingest
 The manifest lives at the configured `data.manifest` path and uses a
 `{"resources": [...]}` object, as in this repository's `sources.json`. Downloads
 are stored under `<data.directory>/<source-id>/<filename>`. Existing downloads
-are reused unless `--force` is specified. Downloads show overall file progress
-and bytes transferred for the current file; use `--no-progress` to hide the bars.
-Progress is written to stderr, keeping stdout as a list of downloaded paths.
-`oracle data remove my-book` removes
+are reused unless `--force` is specified. In an interactive terminal, downloads
+show a pinned live panel on stderr with overall file progress and bytes
+transferred for the current file, while routing `INFO` logs to a rotating file
+(`~/.config/oracle/logs/oracle-download.log` by default); use `--no-progress`
+(or redirect stderr / set `NO_COLOR`) for plain line output without escape
+sequences, or `--debug` to stream logs in the terminal. Progress is written to
+stderr, keeping stdout as a list of downloaded paths. `oracle data remove my-book` removes
 the registration; cached files and the existing index remain until cleanup or
 re-ingestion. Ingestion without a path requires every registered download to
 be present. `oracle clean` confirms before deleting saved indexes;

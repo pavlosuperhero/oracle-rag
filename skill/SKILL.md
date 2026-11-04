@@ -220,7 +220,11 @@ not the books currently indexed by the server. oracle data add ID --title TITLE
 oracle data remove ID removes only its entry; cached files remain, but default
 ingestion excludes that removed source. oracle data download ID [ID ...]
 downloads selected entries; --all downloads every entry. Files are stored in
-~/.config/oracle/data/<id>/; no embeddings are generated until ingest.
+~/.config/oracle/data/<id>/; no embeddings are generated until ingest. In an
+interactive terminal, data download shows a pinned live progress panel on stderr
+and writes INFO/DEBUG logs to ~/.config/oracle/logs/oracle-download.log (use
+--no-progress for plain line output without escape sequences, or --debug to
+stream logs in the terminal).
 Use oracle sources or oracle_sources to inspect the actual running RAG.
 
 oracle clean asks for confirmation before deleting database files.

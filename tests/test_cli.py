@@ -477,3 +477,64 @@ def test_plain_and_rich_progress_adapters(capsys, monkeypatch) -> None:
         assert "5/10" in panel_text
         assert "tokens in: 500   retries: 2   errors: 0" in panel_text
         live.finished(StageFinished("embed", 1.2))
+
+
+def test_data_download_progress_and_log_routing(
+    settings: Settings, tmp_path: Path, monkeypatch, capsys
+) -> None:
+    import io
+    import logging
+
+    from rich.console import Console
+
+    from data.data import DownloadProgress
+    from runtime.presentation import PlainDownloadProgress, RichDownloadProgress
+
+    target = tmp_path / "data" / "orchard" / "guide.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("Apple guide.\n")
+
+    def fake_download(cfg, ids, *, all_sources=False, force=False, progress=None):
+        logging.getLogger("data.data").info("Downloaded orchard to %s", target)
+        if progress is not None:
+            progress(DownloadProgress(target, 0, 12, 0, 1, "connecting"))
+            progress(DownloadProgress(target, 12, 12, 1, 1, "complete"))
+        return [target]
+
+    monkeypatch.setattr(cli, "download_resources", fake_download)
+    result = invoke(settings, "data", "download", "orchard")
+    assert result.exit_code == 0, result.output
+    assert str(target) in result.stdout
+    assert "Downloaded orchard to" not in result.stderr
+    assert "[1/1] orchard/guide.md downloaded (12 bytes)" in result.stderr
+    assert "Summary: 1 files (12 bytes)" in result.stderr
+    assert "\x1b" not in result.stderr
+    log_file = settings.index_path.parent.parent / "logs" / "oracle-download.log"
+    assert log_file.is_file()
+    assert "Downloaded orchard to" in log_file.read_text(encoding="utf-8")
+
+    result_debug = invoke(settings, "data", "download", "orchard", "--debug")
+    assert result_debug.exit_code == 0, result_debug.output
+    assert "Downloaded orchard to" in result_debug.stderr
+    cli.setup_logging(settings=settings)
+
+    buf = io.StringIO()
+    rich_console = Console(file=buf, force_terminal=True, width=100)
+    with RichDownloadProgress(
+        rich_console, "Oracle data download  sources=orchard", "/tmp/download.log"
+    ) as live_dl:
+        live_dl(DownloadProgress(target, 6, 12, 0, 1, "downloading"))
+        rendered = io.StringIO()
+        Console(file=rendered, force_terminal=False, width=100).print(live_dl._render())
+        panel_text = rendered.getvalue()
+        assert "Oracle data download  sources=orchard" in panel_text
+        assert "0/1 files" in panel_text
+        assert "orchard/guide.md" in panel_text
+        live_dl(DownloadProgress(target, 12, 12, 1, 1, "complete"))
+    assert live_dl.received_bytes == 12
+
+    non_tty = Console(stderr=True, force_terminal=False)
+    with PlainDownloadProgress(non_tty, "Oracle data download", "/tmp/dl.log") as plain_dl:
+        plain_dl(DownloadProgress(target, 12, 12, 1, 1, "cached"))
+    captured = capsys.readouterr()
+    assert "[1/1] orchard/guide.md cached (12 bytes)" in captured.err
