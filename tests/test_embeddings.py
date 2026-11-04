@@ -4,7 +4,7 @@ import json
 import threading
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import numpy as np
@@ -83,6 +83,27 @@ def _bedrock_body(embedding: list[float], tokens: int = 6) -> MagicMock:
     stream.__enter__.return_value = io.BytesIO(payload)
     stream.__exit__.return_value = False
     return stream
+
+
+def _mock_async_bedrock(monkeypatch: pytest.MonkeyPatch, sync_client: MagicMock) -> None:
+    """Adapt existing response fixtures to the native client's async interface."""
+    async def invoke(**kwargs: Any) -> dict[str, Any]:
+        response = sync_client.invoke_model(**kwargs)
+        stream = response["body"]
+        body = MagicMock()
+        body.read = AsyncMock(return_value=stream.__enter__().read())
+        stream.__aenter__ = AsyncMock(return_value=body)
+        stream.__aexit__ = AsyncMock(return_value=False)
+        return response
+
+    client = MagicMock()
+    client.invoke_model = AsyncMock(side_effect=invoke)
+    manager = MagicMock()
+    manager.__aenter__ = AsyncMock(return_value=client)
+    manager.__aexit__ = AsyncMock(return_value=False)
+    session = MagicMock()
+    session.create_client.return_value = manager
+    monkeypatch.setattr("embeddings.bedrock.get_session", lambda: session)
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +215,8 @@ def test_bedrock_embedding_init_success_and_env_precedence(
     assert embedder.dimensions == 256
     assert captured["profile_name"] == "env-profile"
     assert captured["region_name"] == "eu-west-1"
-    assert captured["service_name"] == "bedrock-runtime"
+    assert "service_name" not in captured  # no blocking credential or network I/O at init
+    assert embedder._sdk_config.retries == {"mode": "standard", "total_max_attempts": 3}
 
 
 def test_bedrock_embedding_init_missing_region_raises(
@@ -260,6 +282,7 @@ def test_bedrock_embed_deduplicates_and_normalizes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mock_client = MagicMock()
+    _mock_async_bedrock(monkeypatch, mock_client)
 
     def invoke_side_effect(**kwargs: Any) -> dict[str, Any]:
         body = json.loads(kwargs["body"])
@@ -303,6 +326,7 @@ def test_bedrock_embed_one_client_and_validation_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
     mock_session = MagicMock()
     mock_session.region_name = "us-east-1"
     mock_session.client.return_value = mock_client
@@ -490,6 +514,7 @@ def test_embed_reports_every_unique_passage_and_demotes_response_logs(
     from runtime.progress import StageAdvanced, StageFinished, StageStarted
 
     mock_client = MagicMock()
+    _mock_async_bedrock(monkeypatch, mock_client)
 
     def invoke_side_effect(**kwargs: Any) -> dict[str, Any]:
         body = json.loads(kwargs["body"])
@@ -673,10 +698,11 @@ def test_openai_async_embedding_requires_an_active_session() -> None:
         asyncio.run(embedder._embed_one_async("hello"))
 
 
-def test_bedrock_async_runs_blocking_call_off_the_event_loop(
+def test_bedrock_async_uses_native_client_on_the_event_loop(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mock_client = MagicMock()
+    _mock_async_bedrock(monkeypatch, mock_client)
     threads: set[int] = set()
 
     def invoke(**kwargs: Any) -> dict[str, Any]:
@@ -695,4 +721,4 @@ def test_bedrock_async_runs_blocking_call_off_the_event_loop(
     )
     vectors = asyncio.run(embedder.embed_async(["a", "b"]))
     assert vectors.shape == (2, 256)
-    assert threading.get_ident() not in threads
+    assert threads == {threading.get_ident()}

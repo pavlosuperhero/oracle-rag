@@ -56,19 +56,22 @@ class UsageMeter:
         self.tokens_in = 0
         self.retries = 0
         self.errors = 0
+        self.retries_unknown = 0
 
     def reset(self) -> None:
         with self._lock:
             self.tokens_in = self.retries = self.errors = 0
+            self.retries_unknown = 0
 
     def record(self, tokens_in: int = 0, retries: int = 0) -> None:
         with self._lock:
             self.tokens_in += tokens_in
             self.retries += retries
 
-    def record_error(self) -> None:
+    def record_error(self, *, retries_unknown: bool = False) -> None:
         with self._lock:
             self.errors += 1
+            self.retries_unknown += int(retries_unknown)
 
     def snapshot(self) -> tuple[int, int, int]:
         with self._lock:
@@ -140,25 +143,43 @@ class BaseEmbedding(ABC):
         usage = self.usage
         usage.reset()
         began = perf_counter()
-        semaphore = asyncio.Semaphore(workers)
+        pending = iter(unique)
         embeddings: dict[str, list[float]] = {}
         with tracked_stage(progress or NullProgress(), "embed", len(unique)) as advance:
 
-            async def embed_unique(text: str) -> None:
-                async with semaphore:
-                    embeddings[text] = await self._embed_one_async(text)
-                number = len(embeddings)
+            def publish() -> None:
                 tokens_in, retries, errors = usage.snapshot()
-                advance(number, tokens_in=tokens_in, retries=retries, errors=errors)
-                if number % self._config.progress_interval == 0 or number == len(unique):
-                    logger.info("Embedded %d/%d passages", number, len(unique))
+                advance(
+                    len(embeddings), tokens_in=tokens_in, retries=retries, errors=errors,
+                    retries_unknown=usage.retries_unknown,
+                )
+
+            async def worker() -> None:
+                for text in pending:
+                    embeddings[text] = await self._embed_one_async(text)
+                    publish()
+                    number = len(embeddings)
+                    if number % self._config.progress_interval == 0 or number == len(unique):
+                        logger.info("Embedded %d/%d passages", number, len(unique))
 
             try:
                 async with self._async_session(), asyncio.TaskGroup() as group:
-                    for text in unique:
-                        group.create_task(embed_unique(text))
+                    for _ in range(min(workers, len(unique))):
+                        group.create_task(worker())
             except BaseExceptionGroup as group_error:
-                raise group_error.exceptions[0] from None
+                error = group_error.exceptions[0]
+                raise error from error.__cause__
+            finally:
+                # TaskGroup has settled all workers before publishing terminal totals.
+                if len(embeddings) != len(unique):
+                    publish()
+                    tokens_in, retries, errors = usage.snapshot()
+                    logger.warning(
+                        "Embedding stopped: passages=%d/%d tokens_in=%d retries=%d "
+                        "errors=%d retries_unknown=%d elapsed=%.2fs",
+                        len(embeddings), len(unique), tokens_in, retries, errors,
+                        usage.retries_unknown, perf_counter() - began,
+                    )
         tokens_in, retries, errors = usage.snapshot()
         logger.info(
             "Embedding finished: passages=%d tokens_in=%d retries=%d errors=%d elapsed=%.2fs",
