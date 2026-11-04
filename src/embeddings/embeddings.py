@@ -1,7 +1,9 @@
+import asyncio
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from threading import Lock
 from time import perf_counter
 from typing import Protocol
@@ -92,9 +94,39 @@ class BaseEmbedding(ABC):
     def _embed_one(self, text: str) -> list[float]:
         raise NotImplementedError
 
+    async def _embed_one_async(self, text: str) -> list[float]:
+        """Embed one passage without blocking the event loop.
+
+        Providers with a native async client override this; the default runs the
+        blocking ``_embed_one`` in a worker thread.
+        """
+        return await asyncio.to_thread(self._embed_one, text)
+
+    @asynccontextmanager
+    async def _async_session(self) -> AsyncGenerator[None]:
+        """Hold per-call async resources (for example an HTTP client bound to this loop)."""
+        yield
+
     def embed(
         self, texts: Sequence[str], *, progress: IngestProgress | None = None
     ) -> NDArray[np.float32]:
+        """Synchronous facade over :meth:`embed_async`."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.embed_async(texts, progress=progress))
+        # Called from inside a running loop: drive the pipeline on a private loop instead.
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(asyncio.run, self.embed_async(texts, progress=progress)).result()
+
+    async def embed_async(
+        self, texts: Sequence[str], *, progress: IngestProgress | None = None
+    ) -> NDArray[np.float32]:
+        """Embed ``texts`` concurrently; rows come back in input order.
+
+        Progress is reported from the event-loop thread as each unique passage finishes,
+        regardless of the order in which the provider answers.
+        """
         if not texts:
             return np.empty((0, self.dimensions), dtype=np.float32)
         unique = list(dict.fromkeys(texts))
@@ -108,20 +140,25 @@ class BaseEmbedding(ABC):
         usage = self.usage
         usage.reset()
         began = perf_counter()
-        # Events are emitted from this consuming loop, never from worker threads.
-        with (
-            tracked_stage(progress or NullProgress(), "embed", len(unique)) as advance,
-            ThreadPoolExecutor(max_workers=workers) as executor,
-        ):
-            embeddings: dict[str, list[float]] = {}
-            for number, (text, vector) in enumerate(
-                zip(unique, executor.map(self._embed_one, unique), strict=True), 1
-            ):
-                embeddings[text] = vector
+        semaphore = asyncio.Semaphore(workers)
+        embeddings: dict[str, list[float]] = {}
+        with tracked_stage(progress or NullProgress(), "embed", len(unique)) as advance:
+
+            async def embed_unique(text: str) -> None:
+                async with semaphore:
+                    embeddings[text] = await self._embed_one_async(text)
+                number = len(embeddings)
                 tokens_in, retries, errors = usage.snapshot()
                 advance(number, tokens_in=tokens_in, retries=retries, errors=errors)
                 if number % self._config.progress_interval == 0 or number == len(unique):
                     logger.info("Embedded %d/%d passages", number, len(unique))
+
+            try:
+                async with self._async_session(), asyncio.TaskGroup() as group:
+                    for text in unique:
+                        group.create_task(embed_unique(text))
+            except BaseExceptionGroup as group_error:
+                raise group_error.exceptions[0] from None
         tokens_in, retries, errors = usage.snapshot()
         logger.info(
             "Embedding finished: passages=%d tokens_in=%d retries=%d errors=%d elapsed=%.2fs",
