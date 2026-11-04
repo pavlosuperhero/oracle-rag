@@ -20,6 +20,7 @@ from rich.progress import (
     ProgressColumn,
     SpinnerColumn,
     Task,
+    TaskID,
     TaskProgressColumn,
     TextColumn,
     TimeElapsedColumn,
@@ -267,8 +268,8 @@ class RichDownloadProgress:
             auto_refresh=False,
         )
         self._overall = self._progress.add_task("Files", total=None, detail="Preparing…")
-        self._current = self._progress.add_task("Current file", total=None, detail="Waiting…")
-        self._active: Path | None = None
+        # One row per in-flight file; concurrent downloads each keep their own bar.
+        self._files: dict[Path, TaskID] = {}
         self._live = Live(
             get_renderable=self._render, console=console, refresh_per_second=8, transient=True
         )
@@ -289,32 +290,30 @@ class RichDownloadProgress:
         self._live.stop()
 
     def __call__(self, event: DownloadProgress) -> None:
-        if self._active != event.path:
-            self._progress.reset(self._current, total=event.total)
-            self._active = event.path
         if event.status in {"cached", "complete"}:
             self.received_bytes += event.received
         self.completed_files = event.completed_files
         self.total_files = event.total_files
-        detail = f"{decimal(event.received)} / "
-        detail += decimal(event.total) if event.total is not None else "unknown size"
-        if event.status == "connecting":
-            detail = "Connecting…"
-        elif event.status == "cached":
-            detail = f"Cached ({decimal(event.received)})"
         self._progress.update(
             self._overall,
             total=event.total_files,
             completed=event.completed_files,
             detail=f"{event.completed_files}/{event.total_files} files",
         )
-        self._progress.update(
-            self._current,
-            description=f"{event.path.parent.name}/{event.path.name}",
-            total=event.total,
-            completed=event.received,
-            detail=detail,
-        )
+        task = self._files.get(event.path)
+        if event.status in {"cached", "complete"}:
+            if task is not None:
+                self._progress.remove_task(self._files.pop(event.path))
+            return
+        detail = f"{decimal(event.received)} / "
+        detail += decimal(event.total) if event.total is not None else "unknown size"
+        if event.status == "connecting":
+            detail = "Connecting…"
+        if task is None:
+            task = self._files[event.path] = self._progress.add_task(
+                f"{event.path.parent.name}/{event.path.name}", total=event.total, detail=detail
+            )
+        self._progress.update(task, total=event.total, completed=event.received, detail=detail)
 
     def _render(self) -> RenderableType:
         lines: list[RenderableType] = [Text(self._header, style="bold"), self._progress]

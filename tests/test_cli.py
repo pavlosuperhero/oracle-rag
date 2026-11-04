@@ -538,3 +538,36 @@ def test_data_download_progress_and_log_routing(
         plain_dl(DownloadProgress(target, 12, 12, 1, 1, "cached"))
     captured = capsys.readouterr()
     assert "[1/1] orchard/guide.md cached (12 bytes)" in captured.err
+
+
+def test_rich_download_panel_shows_one_row_per_concurrent_file(tmp_path: Path) -> None:
+    import io
+
+    from rich.console import Console
+
+    from data.data import DownloadProgress
+    from runtime.presentation import RichDownloadProgress
+
+    first = tmp_path / "alpha" / "one.md"
+    second = tmp_path / "beta" / "two.md"
+
+    def panel_text(panel: RichDownloadProgress) -> str:
+        rendered = io.StringIO()
+        Console(file=rendered, force_terminal=False, width=100).print(panel._render())
+        return rendered.getvalue()
+
+    with RichDownloadProgress(
+        Console(file=io.StringIO(), force_terminal=True, width=100), "Oracle data download"
+    ) as panel:
+        panel(DownloadProgress(first, 0, None, 0, 2, "connecting"))
+        panel(DownloadProgress(second, 5, 10, 0, 2, "downloading"))
+        text = panel_text(panel)
+        assert "alpha/one.md" in text and "beta/two.md" in text
+        panel(DownloadProgress(second, 10, 10, 1, 2, "complete"))
+        text = panel_text(panel)
+        assert "alpha/one.md" in text and "beta/two.md" not in text
+        assert "1/2 files" in text
+        panel(DownloadProgress(first, 7, 7, 2, 2, "complete"))
+        assert "alpha/one.md" not in panel_text(panel)
+    assert panel.received_bytes == 17
+    assert panel.completed_files == 2

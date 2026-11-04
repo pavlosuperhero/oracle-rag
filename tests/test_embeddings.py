@@ -1,5 +1,7 @@
+import asyncio
 import io
 import json
+import threading
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -18,6 +20,7 @@ from embeddings import (
     OpenAIEmbeddingResponse,
     normalize,
 )
+from embeddings.embeddings import BaseEmbedding
 
 
 def _make_settings(**provider_overrides: Any) -> Settings:
@@ -399,32 +402,31 @@ def test_openai_embed_one_invalid_input_length_raises(bad_text: str) -> None:
 
 def test_openai_embed_deduplicates_and_normalizes() -> None:
     embedder = OpenAIEmbedding(settings=_make_settings(dimensions=1024))
-    mock_client = MagicMock()
+    requests: list[httpx.Request] = []
 
-    def post_side_effect(url: str, json: dict[str, Any]) -> MagicMock:
-        assert url == "http://127.0.0.1:1234/v1/embeddings"
-        assert json["model"] == "text-embedding-bge-large-en-v1.5"
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        payload = json_module.loads(request.content)
+        assert str(request.url) == "http://127.0.0.1:1234/v1/embeddings"
+        assert payload["model"] == "text-embedding-bge-large-en-v1.5"
         vec = [0.0] * 1024
-        if json["input"] == "first passage":
+        if payload["input"] == "first passage":
             vec[0], vec[1] = 3.0, 4.0
         else:
             vec[2], vec[3] = 5.0, 12.0
-        response = MagicMock()
-        response.raise_for_status.return_value = None
-        response.text = json_module.dumps(
-            {
+        return httpx.Response(
+            200,
+            json={
                 "object": "list",
                 "data": [{"object": "embedding", "embedding": vec, "index": 0}],
                 "model": "text-embedding-bge-large-en-v1.5",
                 "usage": {"prompt_tokens": 5, "total_tokens": 5},
-            }
+            },
         )
-        return response
 
     import json as json_module
 
-    mock_client.post.side_effect = post_side_effect
-    embedder._client = mock_client
+    embedder._async_transport = httpx.MockTransport(handler)
 
     empty = embedder.embed([])
     assert empty.shape == (0, 1024)
@@ -433,7 +435,7 @@ def test_openai_embed_deduplicates_and_normalizes() -> None:
     vectors = embedder.embed(["first passage", "second passage", "first passage"])
     assert vectors.shape == (3, 1024)
     assert vectors.dtype == np.float32
-    assert mock_client.post.call_count == 2
+    assert len(requests) == 2
     np.testing.assert_allclose(vectors[0], vectors[2], rtol=1e-6)
     np.testing.assert_allclose(vectors[0, :2], [0.6, 0.8], rtol=1e-6)
     np.testing.assert_allclose(vectors[1, 2:4], [5.0 / 13.0, 12.0 / 13.0], rtol=1e-6)
@@ -547,26 +549,20 @@ def test_openai_embed_records_tokens_and_demotes_response_logs(
     from runtime.progress import StageAdvanced
 
     embedder = OpenAIEmbedding(settings=_make_settings(dimensions=256, worker=1))
-    mock_client = MagicMock()
 
-    def post_side_effect(url: str, json: dict[str, Any]) -> MagicMock:
-        response = MagicMock()
-        response.raise_for_status.return_value = None
+    def handler(request: httpx.Request) -> httpx.Response:
         vec = [1.0] + [0.0] * 255
-        response.text = json_module.dumps(
-            {
+        return httpx.Response(
+            200,
+            json={
                 "object": "list",
                 "data": [{"object": "embedding", "embedding": vec, "index": 0}],
                 "model": "text-embedding-bge-large-en-v1.5",
                 "usage": {"prompt_tokens": 9, "total_tokens": 9},
-            }
+            },
         )
-        return response
 
-    import json as json_module
-
-    mock_client.post.side_effect = post_side_effect
-    embedder._client = mock_client
+    embedder._async_transport = httpx.MockTransport(handler)
 
     progress = RecordingProgress()
     with caplog.at_level(logging.DEBUG):
@@ -578,3 +574,125 @@ def test_openai_embed_records_tokens_and_demotes_response_logs(
     response_logs = [r for r in caplog.records if "OpenAI response:" in r.message]
     assert len(response_logs) == 2
     assert all(r.levelno == logging.DEBUG for r in response_logs)
+
+
+# ---------------------------------------------------------------------------
+# Async pipeline
+# ---------------------------------------------------------------------------
+
+
+class GatedEmbedding(BaseEmbedding):
+    """Provider whose passages finish in an order the test controls."""
+
+    provider_name = "Gated"
+
+    def __init__(self, workers: int) -> None:
+        settings = _make_settings(worker=workers, dimensions=256)
+        self.dimensions = 256
+        self.model = "gated"
+        self._config = settings.provider
+        self.finished: list[str] = []
+        self.in_flight = 0
+        self.max_in_flight = 0
+        self.waits: dict[str, str] = {}  # text -> text that must finish first
+        self.done: dict[str, asyncio.Event] = {}
+        self.failing: set[str] = set()
+
+    def _embed_one(self, text: str) -> list[float]:
+        raise AssertionError("the async pipeline must not call the blocking path")
+
+    async def _embed_one_async(self, text: str) -> list[float]:
+        self.in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        try:
+            if text in self.waits:
+                prerequisite = self.done.setdefault(self.waits[text], asyncio.Event())
+                await asyncio.wait_for(prerequisite.wait(), 5)
+            else:
+                await asyncio.sleep(0)
+            if text in self.failing:
+                raise EmbeddingError(f"boom {text}")
+        finally:
+            self.in_flight -= 1
+        self.finished.append(text)
+        self.done.setdefault(text, asyncio.Event()).set()
+        return [float(ord(text[0])), 1.0] + [0.0] * 254
+
+
+def test_vectors_keep_input_order_when_passages_finish_out_of_order() -> None:
+    from conftest import RecordingProgress
+
+    from runtime.progress import StageAdvanced
+
+    embedder = GatedEmbedding(workers=3)
+    embedder.waits = {"a": "b", "b": "c"}  # completion order is c, b, a
+    progress = RecordingProgress()
+    vectors = embedder.embed(["a", "b", "c", "a"], progress=progress)
+    assert embedder.finished == ["c", "b", "a"]
+    assert vectors.shape == (4, 256)
+    for row, text in zip(vectors, ["a", "b", "c", "a"], strict=True):
+        assert row[0] / row[1] == pytest.approx(ord(text))
+    advanced = [e for e in progress.events if isinstance(e, StageAdvanced)]
+    assert [e.completed for e in advanced] == [1, 2, 3]  # unique passages, as each completes
+
+
+def test_embedding_concurrency_is_bounded_by_workers() -> None:
+    embedder = GatedEmbedding(workers=2)
+    embedder.embed([chr(ord("a") + number) for number in range(6)])
+    assert embedder.max_in_flight == 2
+
+
+def test_embedding_failure_surfaces_as_embedding_error() -> None:
+    embedder = GatedEmbedding(workers=2)
+    embedder.failing = {"b"}
+    with pytest.raises(EmbeddingError, match="boom b"):
+        embedder.embed(["a", "b", "c"])
+
+
+def test_sync_embed_works_inside_a_running_event_loop() -> None:
+    embedder = GatedEmbedding(workers=2)
+
+    async def caller() -> Any:
+        return embedder.embed(["a", "b"])
+
+    assert asyncio.run(caller()).shape == (2, 256)
+    assert asyncio.run(embedder.embed_async(["a", "b"])).shape == (2, 256)
+
+
+def test_openai_async_failure_is_embedding_error_and_counted() -> None:
+    embedder = OpenAIEmbedding(settings=_make_settings(dimensions=256, worker=1))
+    embedder._async_transport = httpx.MockTransport(lambda request: httpx.Response(500))
+    with pytest.raises(EmbeddingError, match="OpenAI embedding request failed"):
+        embedder.embed(["hello"])
+    assert embedder.usage.snapshot()[2] == 1
+
+
+def test_openai_async_embedding_requires_an_active_session() -> None:
+    embedder = OpenAIEmbedding(settings=_make_settings(dimensions=256))
+    with pytest.raises(EmbeddingError, match="only available inside embed_async"):
+        asyncio.run(embedder._embed_one_async("hello"))
+
+
+def test_bedrock_async_runs_blocking_call_off_the_event_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_client = MagicMock()
+    threads: set[int] = set()
+
+    def invoke(**kwargs: Any) -> dict[str, Any]:
+        threads.add(threading.get_ident())
+        return {"body": _bedrock_body([3.0, 4.0] + [0.0] * 254)}
+
+    mock_client.invoke_model.side_effect = invoke
+    mock_session = MagicMock()
+    mock_session.region_name = "us-east-1"
+    mock_session.client.return_value = mock_client
+    monkeypatch.setattr("embeddings.bedrock.boto3.Session", lambda **_kw: mock_session)
+    embedder = BedrockEmbedding(
+        settings=_make_settings(
+            provider="Bedrock", model="amazon.titan-embed-text-v2:0", dimensions=256
+        )
+    )
+    vectors = asyncio.run(embedder.embed_async(["a", "b"]))
+    assert vectors.shape == (2, 256)
+    assert threading.get_ident() not in threads

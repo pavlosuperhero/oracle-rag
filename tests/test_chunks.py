@@ -1,3 +1,5 @@
+import asyncio
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -9,9 +11,13 @@ from documents.chunks import (
     DocumentError,
     Section,
     _chunk_end,
+    chunk_files,
+    chunk_files_async,
     chunk_sections,
     discover,
     extract,
+    load_chunks,
+    load_chunks_async,
 )
 
 # ---------------------------------------------------------------------------
@@ -521,3 +527,104 @@ def test_overlap_always_advances_for_an_overlong_word() -> None:
     chunks = chunk_sections([Section(Path("/abs/word.txt"), "Word", text)], 100, 20)
     assert len(chunks) == 5
     assert "".join(chunk.text for chunk in chunks) == text
+
+
+# ---------------------------------------------------------------------------
+# Concurrent extraction
+# ---------------------------------------------------------------------------
+
+
+def _write_documents(root: Path, count: int) -> list[Path]:
+    files = []
+    for number in range(count):
+        file = root / f"doc{number}.txt"
+        file.write_text(f"Document {number}. " + "word " * 80, encoding="utf-8")
+        files.append(file)
+    return files
+
+
+def test_extraction_overlaps_across_worker_threads(
+    tmp_path: Path, settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    files = _write_documents(tmp_path, 2)
+    rendezvous = threading.Barrier(2, timeout=5)
+    real_extract = extract
+
+    def meeting(path: Path) -> list[Section]:
+        rendezvous.wait()  # breaks unless both files are being extracted at the same time
+        return real_extract(path)
+
+    monkeypatch.setattr("documents.chunks.extract", meeting)
+    chunks = asyncio.run(chunk_files_async(files, settings.chunking, workers=2))
+    assert {chunk.source for chunk in chunks} == set(files)
+
+
+def test_chunk_order_is_independent_of_completion_order(
+    tmp_path: Path, settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    files = _write_documents(tmp_path, 3)
+    expected = chunk_sections(
+        [section for file in files for section in extract(file)],
+        settings.chunking.size,
+        settings.chunking.overlap,
+    )
+    last_done = threading.Event()
+    real_extract = extract
+
+    def last_first(path: Path) -> list[Section]:
+        if path == files[0]:
+            assert last_done.wait(timeout=5)
+        sections = real_extract(path)
+        if path == files[-1]:
+            last_done.set()
+        return sections
+
+    monkeypatch.setattr("documents.chunks.extract", last_first)
+    chunks = asyncio.run(chunk_files_async(files, settings.chunking, workers=3))
+    assert last_done.is_set()
+    assert chunks == expected
+    assert chunk_files(files, settings.chunking) == expected
+
+
+def test_extract_progress_counts_completions_on_caller_thread(
+    tmp_path: Path, settings
+) -> None:
+    files = _write_documents(tmp_path, 4)
+    started, advanced, finished = [], [], []
+    threads = set()
+
+    class Recorder:
+        def started(self, event) -> None:
+            threads.add(threading.get_ident())
+            started.append(event)
+
+        def advanced(self, event) -> None:
+            threads.add(threading.get_ident())
+            advanced.append(event)
+
+        def finished(self, event) -> None:
+            threads.add(threading.get_ident())
+            finished.append(event)
+
+    chunk_files(files, settings.chunking, Recorder())
+    assert threads == {threading.get_ident()}
+    extract_events = [event.completed for event in advanced if event.stage == "extract"]
+    assert extract_events == [1, 2, 3, 4]
+    assert [event.stage for event in started] == ["extract", "chunk"]
+    assert [event.stage for event in finished] == ["extract", "chunk"]
+    assert started[0].total == 4
+
+
+def test_extraction_failure_raises_document_error(tmp_path: Path, settings) -> None:
+    files = _write_documents(tmp_path, 2)
+    bad = tmp_path / "bad.txt"
+    bad.write_bytes(b"\xff\xfe\x00bad")
+    with pytest.raises(DocumentError, match="UTF-8"):
+        chunk_files([*files, bad], settings.chunking)
+
+
+def test_load_chunks_async_matches_sync_facade(tmp_path: Path, settings) -> None:
+    _write_documents(tmp_path, 3)
+    assert asyncio.run(load_chunks_async(tmp_path, settings=settings)) == load_chunks(
+        tmp_path, settings=settings
+    )
