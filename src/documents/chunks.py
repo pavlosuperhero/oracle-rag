@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 import os
@@ -16,6 +17,7 @@ from runtime.progress import IngestProgress, NullProgress, tracked_stage
 logger = logging.getLogger(__name__)
 
 SUPPORTED_PREFIXES = frozenset({".pdf", ".txt", ".md", ".rst", ".html", ".htm"})
+DEFAULT_EXTRACT_WORKERS = 4
 
 # Elements removed from the selected content root. Documentation generators embed
 # feedback widgets, edit links, comment stubs and non-semantic footers inside
@@ -270,19 +272,67 @@ def chunk_sections(
     return chunks
 
 
+async def chunk_files_async(
+    files: Sequence[Path],
+    config: ChunkingConfig,
+    progress: IngestProgress | None = None,
+    *,
+    workers: int = DEFAULT_EXTRACT_WORKERS,
+) -> list[Chunk]:
+    """Extract files in worker threads, then split them into passages.
+
+    Sections are assembled in input order, so chunk IDs and order never depend on which
+    file finishes first. Progress is reported from the event-loop thread as files complete.
+    """
+    progress = progress or NullProgress()
+    results: list[list[Section] | None] = [None] * len(files)
+    semaphore = asyncio.Semaphore(max(1, workers))
+
+    with tracked_stage(progress, "extract", len(files)) as advance:
+        completed = 0
+
+        async def read(index: int, file: Path) -> None:
+            nonlocal completed
+            async with semaphore:
+                results[index] = await asyncio.to_thread(extract, file)
+            completed += 1
+            advance(completed)
+
+        try:
+            async with asyncio.TaskGroup() as group:
+                for index, file in enumerate(files):
+                    group.create_task(read(index, file))
+        except BaseExceptionGroup as group_error:
+            raise group_error.exceptions[0] from None
+    sections = [section for result in results if result for section in result]
+    with tracked_stage(progress, "chunk") as advance:
+        chunks = chunk_sections(sections, config.size, config.overlap)
+        advance(len(chunks))
+    return chunks
+
+
 def chunk_files(
     files: Sequence[Path], config: ChunkingConfig, progress: IngestProgress | None = None
 ) -> list[Chunk]:
     """Extract text from discovered files and split it into passages, reporting progress."""
-    progress = progress or NullProgress()
-    sections: list[Section] = []
-    with tracked_stage(progress, "extract", len(files)) as advance:
-        for number, file in enumerate(files, 1):
-            sections.extend(extract(file))
-            advance(number)
-    with tracked_stage(progress, "chunk") as advance:
-        chunks = chunk_sections(sections, config.size, config.overlap)
-        advance(len(chunks))
+    return asyncio.run(chunk_files_async(files, config, progress))
+
+
+async def load_chunks_async(
+    path: Path,
+    recursive: bool = False,
+    settings: Settings | None = None,
+    progress: IngestProgress | None = None,
+    *,
+    workers: int = DEFAULT_EXTRACT_WORKERS,
+) -> list[Chunk]:
+    config = (settings or load_config()).chunking
+    with tracked_stage(progress or NullProgress(), "discover") as advance:
+        files = discover(path, recursive)
+        advance(len(files))
+    chunks = await chunk_files_async(files, config, progress, workers=workers)
+    if not chunks:
+        raise DocumentError(f"No readable document text found in {path}")
     return chunks
 
 
@@ -292,11 +342,4 @@ def load_chunks(
     settings: Settings | None = None,
     progress: IngestProgress | None = None,
 ) -> list[Chunk]:
-    config = (settings or load_config()).chunking
-    with tracked_stage(progress or NullProgress(), "discover") as advance:
-        files = discover(path, recursive)
-        advance(len(files))
-    chunks = chunk_files(files, config, progress)
-    if not chunks:
-        raise DocumentError(f"No readable document text found in {path}")
-    return chunks
+    return asyncio.run(load_chunks_async(path, recursive, settings, progress))
