@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -154,14 +155,20 @@ def remove_resource(settings: Settings, resource_id: str) -> None:
     logger.info("Removed source registration: %s", resource_id)
 
 
-def download_resources(
+async def download_resources_async(
     settings: Settings,
     resource_ids: Sequence[str],
     *,
     all_sources: bool = False,
     force: bool = False,
     progress: Callable[[DownloadProgress], None] | None = None,
+    workers: int | None = None,
 ) -> list[Path]:
+    """Download selected sources concurrently; returned paths follow manifest order.
+
+    At most ``workers`` transfers run at once. Progress callbacks are invoked only on the
+    event-loop thread, so adapters need no locking.
+    """
     if bool(resource_ids) == all_sources:
         raise DataError("Choose source IDs or --all.")
     resources = read_resources(settings)
@@ -171,61 +178,109 @@ def download_resources(
     selected = [resource for resource in resources if all_sources or resource.id in resource_ids]
     if not selected:
         raise DataError("No sources registered. Use oracle data add first.")
-    paths: list[Path] = []
-    total_files = sum(len(resource.downloads) for resource in selected)
+    jobs = [
+        (resource, download, download_path(settings, resource, download))
+        for resource in selected
+        for download in resource.downloads
+    ]
+    total_files = len(jobs)
+    limit = max(1, workers or settings.data.download_workers)
+    completed_files = 0
 
     def report(path: Path, received: int, total: int | None,
                status: Literal["connecting", "downloading", "cached", "complete"]) -> None:
+        nonlocal completed_files
+        if status in {"cached", "complete"}:
+            completed_files += 1
         if progress is not None:
-            completed = len(paths) + int(status in {"cached", "complete"})
-            progress(DownloadProgress(path, received, total, completed, total_files, status))
+            progress(DownloadProgress(path, received, total, completed_files, total_files, status))
 
-    with httpx.Client(timeout=settings.data.download_timeout, follow_redirects=True,
-                      trust_env=False) as client:
-        for resource in selected:
-            for download in resource.downloads:
-                path = download_path(settings, resource, download)
-                if path.is_file() and not force:
-                    size = path.stat().st_size
-                    report(path, size, size, "cached")
-                    paths.append(path)
-                    continue
-                path.parent.mkdir(parents=True, exist_ok=True)
-                temporary: Path | None = None
-                try:
-                    report(path, 0, None, "connecting")
-                    with client.stream("GET", download.url) as response:
-                        response.raise_for_status()
-                        try:
-                            total = int(response.headers.get("Content-Length", ""))
-                        except ValueError:
-                            total = None
-                        if response.headers.get("Content-Encoding", "identity") != "identity":
-                            total = None
-                        if total is not None and total <= 0:
-                            total = None
-                        size = 0
-                        report(path, size, total, "downloading")
-                        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as file:
-                            temporary = Path(file.name)
-                            for chunk in response.iter_bytes():
-                                size += len(chunk)
-                                if size > settings.data.max_download_bytes:
-                                    raise DataError(f"Download exceeds byte limit: {download.url}")
-                                file.write(chunk)
-                                report(path, size, total, "downloading")
-                        if size == 0:
-                            raise DataError(f"Empty download: {download.url}")
-                    os.replace(temporary, path)
-                    report(path, size, size, "complete")
-                    logger.info("Downloaded %s to %s", resource.id, path)
-                except httpx.HTTPError as exc:
-                    raise DataError(f"Cannot download {download.url}: {exc}") from exc
-                finally:
-                    if temporary is not None:
-                        temporary.unlink(missing_ok=True)
-                paths.append(path)
-    return paths
+    paths: list[Path | None] = [None] * total_files
+    semaphore = asyncio.Semaphore(limit)
+
+    async def fetch(index: int, client: httpx.AsyncClient, resource: Resource,
+                    download: Download, path: Path) -> None:
+        async with semaphore:
+            if path.is_file() and not force:
+                size = path.stat().st_size
+                report(path, size, size, "cached")
+            else:
+                size = await _download_file(settings, client, resource, download, path, report)
+                report(path, size, size, "complete")
+                logger.info("Downloaded %s to %s", resource.id, path)
+            paths[index] = path
+
+    limits = httpx.Limits(max_connections=limit, max_keepalive_connections=limit)
+    try:
+        async with (
+            httpx.AsyncClient(timeout=settings.data.download_timeout, follow_redirects=True,
+                              trust_env=False, limits=limits) as client,
+            asyncio.TaskGroup() as group,
+        ):
+            for index, (resource, download, path) in enumerate(jobs):
+                group.create_task(fetch(index, client, resource, download, path))
+    except BaseExceptionGroup as group_error:
+        # Surface the first failure in manifest order rather than an exception group.
+        raise group_error.exceptions[0] from None
+    return [path for path in paths if path is not None]
+
+
+async def _download_file(
+    settings: Settings,
+    client: httpx.AsyncClient,
+    resource: Resource,
+    download: Download,
+    path: Path,
+    report: Callable[..., None],
+) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        report(path, 0, None, "connecting")
+        async with client.stream("GET", download.url) as response:
+            response.raise_for_status()
+            try:
+                total: int | None = int(response.headers.get("Content-Length", ""))
+            except ValueError:
+                total = None
+            if response.headers.get("Content-Encoding", "identity") != "identity":
+                total = None
+            if total is not None and total <= 0:
+                total = None
+            size = 0
+            report(path, size, total, "downloading")
+            with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as file:
+                temporary = Path(file.name)
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > settings.data.max_download_bytes:
+                        raise DataError(f"Download exceeds byte limit: {download.url}")
+                    file.write(chunk)
+                    report(path, size, total, "downloading")
+            if size == 0:
+                raise DataError(f"Empty download: {download.url}")
+        os.replace(temporary, path)
+        return size
+    except httpx.HTTPError as exc:
+        raise DataError(f"Cannot download {download.url}: {exc}") from exc
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def download_resources(
+    settings: Settings,
+    resource_ids: Sequence[str],
+    *,
+    all_sources: bool = False,
+    force: bool = False,
+    progress: Callable[[DownloadProgress], None] | None = None,
+) -> list[Path]:
+    return asyncio.run(
+        download_resources_async(
+            settings, resource_ids, all_sources=all_sources, force=force, progress=progress
+        )
+    )
 
 
 def managed_documents(settings: Settings) -> list[Path]:

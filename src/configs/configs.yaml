@@ -32,6 +32,7 @@ data:
   manifest: "../data/sources.json"
   download_timout: 120
   max_download_bytes: 104857600
+  download_workers: 4
 logging:
   level: INFO
   file: null

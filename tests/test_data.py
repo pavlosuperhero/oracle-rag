@@ -1,3 +1,4 @@
+import asyncio
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +13,7 @@ from data.data import (
     Resource,
     add_resource,
     download_resources,
+    download_resources_async,
     list_resources,
     managed_documents,
     read_resources,
@@ -153,3 +155,123 @@ def test_same_filename_different_sources_stays_separate(data_settings):
     add_resource(settings, resource(resource_id="two"))
     paths = [entry["downloads"][0]["path"] for entry in list_resources(settings)]
     assert len(set(paths)) == 2
+
+
+@pytest.fixture
+def routed_server():
+    """Serve per-path behaviours; ``gates`` lets a test coordinate concurrent requests."""
+    gates: dict[str, threading.Event] = {}
+    rendezvous = threading.Barrier(2, timeout=5)
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            name = self.path.lstrip("/")
+            if name.startswith("meet"):
+                # Both requests must be in flight together or the barrier breaks.
+                try:
+                    rendezvous.wait()
+                except threading.BrokenBarrierError:
+                    self.send_error(500)
+                    return
+            elif name == "first":
+                gates["second-done"].wait(timeout=5)
+            elif name == "fail":
+                gates["stalled"].wait(timeout=5)
+                self.send_error(500)
+                return
+            elif name == "stall":
+                self.send_response(200)
+                self.send_header("Content-Length", "100")
+                self.end_headers()
+                self.wfile.write(b"partial")
+                self.wfile.flush()
+                gates["stalled"].set()
+                gates["release"].wait(timeout=5)
+                return
+            body = f"body of {name}".encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            if name == "second":
+                gates["second-done"].set()
+
+        def log_message(self, *args):
+            pass
+
+    for gate in ("second-done", "stalled", "release"):
+        gates[gate] = threading.Event()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", gates
+    finally:
+        gates["release"].set()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def register(settings, base_url, names):
+    for name in names:
+        url = f"{base_url}/{name}"
+        add_resource(settings, Resource(
+            id=name, title=name, source=url, downloads=[Download(filename=f"{name}.md", url=url)]))
+
+
+def test_downloads_overlap_when_workers_allow(data_settings, routed_server):
+    base_url, _ = routed_server
+    register(data_settings, base_url, ["meet-a", "meet-b"])
+    paths = asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=2))
+    assert [path.read_text() for path in paths] == ["body of meet-a", "body of meet-b"]
+
+
+def test_single_worker_never_overlaps(data_settings, routed_server):
+    base_url, _ = routed_server
+    register(data_settings, base_url, ["meet-a", "meet-b"])
+    with pytest.raises(DataError, match="Cannot download"):
+        asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=1))
+
+
+def test_paths_follow_manifest_order_despite_completion_order(data_settings, routed_server):
+    base_url, gates = routed_server
+    register(data_settings, base_url, ["first", "second"])
+    paths = asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=2))
+    assert gates["second-done"].is_set()
+    assert [path.parent.name for path in paths] == ["first", "second"]
+    assert paths == download_resources(data_settings, [], all_sources=True)
+
+
+def test_failure_cancels_siblings_and_removes_temporary_files(data_settings, routed_server):
+    base_url, gates = routed_server
+    register(data_settings, base_url, ["stall", "fail"])
+    with pytest.raises(DataError, match="Cannot download"):
+        asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=2))
+    assert gates["stalled"].is_set()
+    leftovers = [
+        path for path in data_settings.data_path.rglob("*")
+        if path.is_file() and path != data_settings.manifest_path
+    ]
+    assert leftovers == []
+
+
+def test_progress_is_emitted_on_caller_thread_with_accurate_counts(data_settings, routed_server):
+    base_url, _ = routed_server
+    register(data_settings, base_url, ["alpha", "beta", "gamma"])
+    events = []
+    threads = set()
+
+    def on_progress(event):
+        threads.add(threading.get_ident())
+        events.append(event)
+
+    download_resources(data_settings, [], all_sources=True, progress=on_progress)
+    assert threads == {threading.get_ident()}
+    finished = [event for event in events if event.status == "complete"]
+    assert [event.completed_files for event in finished] == [1, 2, 3]
+    assert {event.total_files for event in events} == {3}
+    cached_events = []
+    download_resources(data_settings, [], all_sources=True, progress=cached_events.append)
+    assert [event.status for event in cached_events] == ["cached"] * 3
+    assert cached_events[-1].completed_files == 3
