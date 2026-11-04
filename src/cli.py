@@ -307,6 +307,13 @@ def ingest(
                 selected, recursive, destination, region, profile, settings, tracker
             )
     except (DataError, DocumentError, EmbeddingError, StorageError, OSError) as exc:
+        console.print(
+            f"Ingestion failed: tokens in {tracker.tokens_in:,}, "
+            f"known retries {tracker.retries:,}, "
+            f"errors {tracker.errors:,}, failed requests with unknown retries "
+            f"{tracker.retries_unknown:,}, elapsed {format_duration(perf_counter() - started)}",
+            markup=False, highlight=False, soft_wrap=True,
+        )
         fail(exc)
     typer.echo(
         f"Saved {loaded.stats.documents} documents, {loaded.stats.chunks} chunks to {destination}"

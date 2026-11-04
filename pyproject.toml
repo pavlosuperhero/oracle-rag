@@ -13,7 +13,8 @@ license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = [
     "beautifulsoup4>=4.15.0",
-    "boto3>=1.43.122",
+    "aiobotocore>=3.10,<4",
+    "boto3>=1.43.115",
     "fastapi>=0.162.0",
     "fonttools>=4.68.0",
     "httpx>=0.28.1",
@@ -74,6 +75,6 @@ strict = true
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["rank_bm25"]
+module = ["rank_bm25", "aiobotocore.*"]
 ignore_missing_imports = true
 

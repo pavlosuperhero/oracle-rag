@@ -28,6 +28,7 @@ class StageAdvanced:
     tokens_in: int = 0  # cumulative, embed stage only
     retries: int = 0  # cumulative, embed stage only
     errors: int = 0  # cumulative, embed stage only
+    retries_unknown: int = 0  # failed requests without SDK retry metadata
 
 
 @dataclass(frozen=True)
@@ -64,11 +65,13 @@ class TotalsRecorder(NullProgress):
         self.tokens_in = 0
         self.retries = 0
         self.errors = 0
+        self.retries_unknown = 0
 
     def advanced(self, event: StageAdvanced) -> None:
         self.tokens_in = event.tokens_in
         self.retries = event.retries
         self.errors = event.errors
+        self.retries_unknown = event.retries_unknown
 
 
 Advance = Callable[..., None]
@@ -85,8 +88,13 @@ def tracked_stage(
     began = perf_counter()
     progress.started(StageStarted(stage, total))
 
-    def advance(completed: int, *, tokens_in: int = 0, retries: int = 0, errors: int = 0) -> None:
-        progress.advanced(StageAdvanced(stage, completed, tokens_in, retries, errors))
+    def advance(
+        completed: int, *, tokens_in: int = 0, retries: int = 0, errors: int = 0,
+        retries_unknown: int = 0,
+    ) -> None:
+        progress.advanced(
+            StageAdvanced(stage, completed, tokens_in, retries, errors, retries_unknown)
+        )
 
     yield advance
     progress.finished(StageFinished(stage, perf_counter() - began))

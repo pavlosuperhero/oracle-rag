@@ -155,6 +155,7 @@ class RichIngestProgress(TotalsRecorder):
             Text(
                 f"{'':18}tokens in: {self.tokens_in:,}   retries: {self.retries:,}"
                 f"   errors: {self.errors:,}"
+                f"   failed requests with unknown retries: {self.retries_unknown:,}"
             )
         )
         if self._log_path:

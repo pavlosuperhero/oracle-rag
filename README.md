@@ -129,6 +129,22 @@ To use Bedrock, set `provider.provider: Bedrock`,
 `provider.model: amazon.titan-embed-text-v2:0`, and configure an AWS region and
 credentials. Both ingestion and serving select the configured provider.
 
+Bedrock requests use native asynchronous I/O through aiobotocore; the synchronous
+`embed()` API drives the same async pipeline. OpenAI-compatible requests use
+HTTPX's async client. Embedding creates at most `provider.worker` worker tasks
+and preserves input order while embedding duplicate passages only once. On failure
+or cancellation, pending workers settle and the per-call async client and response
+bodies close before the operation exits.
+
+Bedrock uses the SDK's standard retry policy: `provider.retry_attempts` is the
+maximum **total attempts**, including the first request. There is no additional
+application retry layer. Transport failures before a response can be retried by
+the SDK; failures while reading a streaming response body stop ingestion, since
+SDK retries do not cover that read. Failed ingestion leaves the previous index
+intact. Logs record effective worker, connection/read timeout, and retry settings.
+The async SDK constrains compatible botocore versions; keep the resolved boto3,
+botocore, and aiobotocore versions together when updating dependencies.
+
 ```sh
 oracle ingest /path/to/documents --recursive
 oracle serve --foreground
@@ -145,6 +161,9 @@ file (`~/.config/oracle/logs/oracle-ingest.log` when no log file is configured).
 Use `--no-progress` (or redirect stderr / set `NO_COLOR`) for plain line-by-line
 progress without control characters, or `oracle ingest --debug` to stream full
 logs directly in the terminal.
+On failure, the final summary includes errors and known retries. Failed requests
+whose SDK exception has no retry metadata are counted separately as having unknown
+retries, rather than being reported as zero retries.
 Stop a foreground server with Ctrl-C. HTTP documentation is available at
 `http://127.0.0.1:8742/docs`; MCP is mounted at `/mcp/`. `oracle mcp` provides a
 stdio adapter to a running server. Use `--token` or `ORACLE_TOKEN` for bearer
