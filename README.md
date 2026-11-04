@@ -268,3 +268,16 @@ an installed executable instead of `--uv-project` to test a tool installation.
 
 The refactoring specification and implementation phases are tracked in the
 [GitHub roadmap](https://github.com/pavlosuperhero/oracle-rag/issues/1).
+
+## License and contributions
+
+Oracle RAG is licensed under **AGPL-3.0-only**; see [LICENSE](LICENSE).
+You may use, modify, and redistribute it under those terms. If you modify Oracle
+and let users interact with that version over a network, AGPL requires an offer
+of its corresponding source to those users. Downloaded books, documents,
+dependencies, and other third-party material retain their own licenses.
+
+Anyone can propose changes. Oracle uses public pull requests, DCO sign-offs,
+and maintainer-led review, with [@pavlosuperhero](https://github.com/pavlosuperhero)
+as the final integrator. See [CONTRIBUTING.md](CONTRIBUTING.md) for submission
+steps and [GOVERNANCE.md](GOVERNANCE.md) for review authority and permissions.
