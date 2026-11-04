@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
@@ -14,6 +14,59 @@ from configs.configs import Settings, load_config
 logger = logging.getLogger(__name__)
 
 SUPPORTED_PREFIXES = frozenset({".pdf", ".txt", ".md", ".rst", ".html", ".htm"})
+
+# Elements removed from the selected content root. Documentation generators embed
+# feedback widgets, edit links, comment stubs and non-semantic footers inside
+# <main>/<article>/<body>, so tag names alone are not enough.
+HTML_NOISE_SELECTORS: tuple[str, ...] = (
+    "script, style, noscript, template, svg, canvas, iframe",
+    "nav, header, footer, aside, form, button, dialog, select, option",
+    '[role="navigation"], [role="banner"], [role="contentinfo"]',
+    '[role="complementary"], [role="search"], [role="dialog"]',
+    '[hidden], [aria-hidden="true"], .d-print-none, .display-none-print',
+    '[style*="display: none"], [style*="display:none"]',
+    ".related, .sphinxsidebar",
+    '[class*="footer"], [id*="footer"]',
+    '[data-bi-name="page info"], [data-bi-name="feedback-section"]',
+    '[class*="td-page-meta"]',
+    '[class*="feedback"], [id*="feedback"]',
+    '[class*="contribute"], [class*="edit-this-page"], [class*="edit-page"]',
+    '.comments, #comments, [id*="disqus"], [class*="disqus"]',
+    '#toc, .toc, [class*="breadcrumb"], [aria-label="breadcrumbs"]',
+)
+
+# Tried in priority order; the first selector that matches provides the content root.
+HTML_CONTENT_SELECTORS: tuple[str, ...] = (
+    "article",
+    "main",
+    '[role="main"]',
+    ".post",
+    ".document",
+    ".markdown-body",
+    "#content",
+)
+
+# Standalone UI lines that survive tag/class pruning (matched against a whole line).
+BOILERPLATE_LINE = re.compile(
+    r"(?:"
+    r"was this page helpful\??|"
+    r"did this page help you\??.*|"
+    r"report a problem(?: with this (?:page|content))?|"
+    r"view this page on github(?:\s*•\s*report a problem.*)?|"
+    r"edit this page(?: on github)?|"
+    r"improve this page|"
+    r"help improve mdn|"
+    r"learn how to contribute|"
+    r"open a documentation issue|"
+    r"provide product feedback|"
+    r"suggest a fix\??|"
+    r"found a bug\s*\??.*|"
+    r"back to top|"
+    r"copy (?:as )?markdown|"
+    r"(?:please enable javascript to view the )?comments powered by disqus\.?"
+    r")",
+    re.IGNORECASE,
+)
 
 
 class DocumentError(ValueError):
@@ -83,6 +136,33 @@ def discover(path: Path, recursive: bool = False) -> list[Path]:
     return files
 
 
+def extract_html(raw_html: str, default_title: str) -> tuple[str, str]:
+    """Return ``(title, text)`` for an HTML document without page boilerplate.
+
+    The content root is chosen first and noise is removed only from its descendants,
+    so a broad selector such as ``[class*="footer"]`` can never discard the content
+    itself. The title falls back to ``default_title`` when the page has none.
+    """
+    soup = BeautifulSoup(raw_html, "html.parser")
+    title = default_title
+    if soup.title and soup.title.get_text(" ", strip=True):
+        title = soup.title.get_text(" ", strip=True)
+
+    root = next(
+        (match for selector in HTML_CONTENT_SELECTORS if (match := soup.select_one(selector))),
+        soup.body or soup,
+    )
+    for comment in root.find_all(string=lambda node: isinstance(node, Comment)):
+        comment.extract()
+    for element in root.select(", ".join(HTML_NOISE_SELECTORS)):
+        if not element.decomposed:
+            element.decompose()
+
+    lines = (line.strip() for line in root.get_text("\n").splitlines())
+    text = "\n".join(line for line in lines if line and not BOILERPLATE_LINE.fullmatch(line))
+    return title, text
+
+
 def extract(path: Path) -> list[Section]:
     if path.suffix.lower() == ".pdf":
         try:
@@ -104,15 +184,7 @@ def extract(path: Path) -> list[Section]:
         title = path.stem
         html = path.suffix.lower() in {".html", ".htm"}
         if html:
-            soup = BeautifulSoup(text, "html.parser")
-            if soup.title and soup.title.get_text(" ", strip=True):
-                title = soup.title.get_text(" ", strip=True)
-            for element in soup.select("script, style, nav, header, footer, aside, form"):
-                element.decompose()
-            content = soup.select_one("article, main, .post") or soup.body or soup
-            text = "\n".join(
-                line.strip() for line in content.get_text("\n").splitlines() if line.strip()
-            )
+            title, text = extract_html(text, title)
         elif path.suffix.lower() == ".rst":
             match = re.search(r"^Title:\s*(.+)$", text, re.MULTILINE)
             if match:
