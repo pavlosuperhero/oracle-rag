@@ -20,6 +20,12 @@ Linux kernel, using GitHub pull requests as the public review record.
 6. Respond to review, update the patch, and explain material revisions. The
    maintainer decides whether the change is ready and integrates it.
 
+The default [pull request template](.github/PULL_REQUEST_TEMPLATE.md) includes
+prompts for motivation, reproduction, design choices, verification, and reviewer
+attention. Keep answers proportional to the change and mark inapplicable sections
+with a reason. A small documentation fix does not need a full design proposal.
+Use a draft pull request when you want early feedback on unfinished work.
+
 Keep discussion technical and respectful. Critique the patch with concrete
 evidence; explain disagreements and address review feedback. Approval is based
 on correctness, maintainability, scope, and the project's direction.
@@ -54,3 +60,15 @@ Public review is welcome, but only the maintainer grants integration approval.
 Do not add `Reviewed-by`, `Acked-by`, or `Tested-by` trailers without the named
 person's explicit consent. Review approval must cover the latest revision.
 See [GOVERNANCE.md](GOVERNANCE.md) for authority and repository permissions.
+
+If a submission receives no response, a polite follow-up in the same pull request
+after about a week is welcome; this is guidance, not a promised response time.
+Reviewers should explain requested changes and distinguish required fixes from
+optional suggestions. The maintainer should leave each submission with a clear
+next step, integration decision, or explanation for closure.
+
+This guidance draws on Karl Fogel's *Producing Open Source Software*, retrieved
+through Oracle: author self-review and testing (indexed PDF page 38), and following
+patches through review to a clear outcome (indexed PDF pages 158–159). The PR
+structure and follow-up interval are this project's application of those principles.
+The book is available at [producingoss.com](https://producingoss.com/).
