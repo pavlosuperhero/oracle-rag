@@ -237,6 +237,87 @@ def test_extract_html_strips_boilerplate_and_extracts_article(tmp_path: Path) ->
     assert "Footer" not in section.text
 
 
+@pytest.mark.parametrize(
+    ("body", "expected", "forbidden"),
+    [
+        pytest.param(
+            """<main id="content"><h1>CSS Basics</h1><p>Selectors match elements.</p>
+            <p>Escaped &lt;footer&gt; stays as text.</p>
+            <div class="article-footer__links"><a class="article-footer__contribute">
+            Help improve MDN</a><p>Learn how to contribute</p>
+            <p>View this page on GitHub • Report a problem with this content</p></div></main>""",
+            "CSS Basics\nSelectors match elements.\nEscaped <footer> stays as text.",
+            ["Help improve", "contribute", "Report a problem"],
+            id="mdn-article-footer",
+        ),
+        pytest.param(
+            """<body class="awsdocs"><h1>Bedrock</h1><p>Embed text.</p>
+            <div id="quick-feedback-yes" style="display: none;">Did this page help you? - Yes
+            Thanks for letting us know</div></body>""",
+            "Bedrock\nEmbed text.",
+            ["Did this page help you", "Thanks"],
+            id="aws-hidden-feedback",
+        ),
+        pytest.param(
+            """<body class="article toc2 toc-left"><h1>TDD</h1><p>Write a test.</p>
+            <div id="footer"><div id="footer-text">Last updated: 2025</div></div>
+            <div class="comments">Comments<noscript>Please enable JavaScript</noscript></div>
+            </body>""",
+            "TDD\nWrite a test.",
+            ["Last updated", "Comments", "JavaScript"],
+            id="asciidoctor-footer-and-disqus",
+        ),
+        pytest.param(
+            """<main role="main"><h1>OpenTelemetry</h1><p>Configure an exporter.</p>
+            <div class="d-print-none"><h2 class="feedback--title">Feedback</h2>
+            <p>Was this page helpful?</p><button>Yes</button><button>No</button></div>
+            <div class="td-page-meta__lastmod">Last modified September 28, 2026</div></main>""",
+            "OpenTelemetry\nConfigure an exporter.",
+            ["helpful", "Feedback", "Last modified"],
+            id="docsy-feedback",
+        ),
+        pytest.param(
+            """<main id="main"><h1>PowerShell</h1><p>Run commands.</p>
+            <div data-bi-name="feedback-section"><p>Provide product feedback</p></div>
+            <p>Open a documentation issue</p><p>Suggest a fix?</p></main>""",
+            "PowerShell\nRun commands.",
+            ["feedback", "documentation issue", "Suggest a fix"],
+            id="microsoft-learn",
+        ),
+        pytest.param(
+            """<div class="document"><h1>subprocess</h1><p>Spawn processes.</p>
+            <p>Edit this page on GitHub</p><p>Found a bug ? Created using Sphinx 7.2.6.</p>
+            <div class="sphinxsidebar">Navigation index</div></div>""",
+            "subprocess\nSpawn processes.",
+            ["Edit this page", "Found a bug", "Navigation index"],
+            id="sphinx",
+        ),
+    ],
+)
+def test_extract_html_strips_documentation_boilerplate(
+    tmp_path: Path, body: str, expected: str, forbidden: list[str]
+) -> None:
+    html_file = tmp_path / "doc.html"
+    html_file.write_text(
+        f"<!doctype html><html><head><title>Doc</title></head>{body}</html>", encoding="utf-8"
+    )
+    sections = extract(html_file)
+    assert len(sections) == 1
+    assert sections[0].text == expected
+    for phrase in forbidden:
+        assert phrase not in sections[0].text
+
+
+def test_extract_html_noise_selectors_never_remove_the_content_root(tmp_path: Path) -> None:
+    html_file = tmp_path / "doc.html"
+    html_file.write_text(
+        '<html><body class="site-footer-layout"><main class="feedback-page"><p>Kept.</p></main>'
+        "</body></html>",
+        encoding="utf-8",
+    )
+    assert extract(html_file)[0].text == "Kept."
+
+
 def test_extract_pdf_pages_and_skips_blank_pages(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
