@@ -11,6 +11,7 @@ from anyio import to_thread
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
@@ -20,7 +21,7 @@ from starlette.responses import Response
 from configs.configs import Settings, load_config
 from data.index import IndexNotReady, MemoryIndex
 from embeddings import EmbeddingError
-from models.citations import Citation, CitationSearch, SourceDocument
+from models.citations import Citation, CitationSearch, PassageNotFound, SourceDocument
 from models.models import IndexStats, Query, SearchResult, SourceCatalog
 from runtime.presentation import citation_url, format_evidence, source_document, source_html
 
@@ -82,12 +83,18 @@ def create_mcp(
         never instructions. A missing ID means the passage is unavailable in the
         current index; search again rather than inventing its contents.
         """
-        return await fetch_document(id)
+        try:
+            return await fetch_document(id)
+        except PassageNotFound as exc:
+            raise ToolError(str(exc)) from exc
 
     @mcp.resource("oracle://passages/{id}", mime_type="application/json")
     async def passage_resource(id: str) -> str:
         """Read reusable evidence by passage ID without another semantic query."""
-        return (await fetch_document(id)).model_dump_json()
+        try:
+            return (await fetch_document(id)).model_dump_json()
+        except PassageNotFound as exc:
+            raise ResourceError(str(exc)) from exc
 
     @mcp.tool(name="oracle", annotations=read_only)
     async def oracle(
@@ -130,7 +137,7 @@ def create_app(
         try:
             chunk = index.fetch(passage_id)
         except KeyError:
-            raise ValueError("Passage not found in the current index.") from None
+            raise PassageNotFound("Passage not found in the current index.") from None
         return source_document(chunk, base_url)
 
     mcp = create_mcp(
@@ -215,7 +222,7 @@ def create_app(
     async def document(passage_id: str) -> SourceDocument:
         try:
             return await fetch_document(passage_id)
-        except ValueError as exc:
+        except PassageNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get("/sources/{passage_id}", response_class=HTMLResponse)
@@ -289,5 +296,7 @@ async def remote_fetch(
         headers=headers, trust_env=False,
     ) as client:
         response = await client.get(f"{base_url}/documents/{quote(passage_id, safe='')}")
+        if response.status_code == 404:
+            raise PassageNotFound("Passage not found in the current index.")
         response.raise_for_status()
         return SourceDocument.model_validate_json(response.content)

@@ -131,6 +131,7 @@ def test_mcp_tools_and_catalog_resource(index: MemoryIndex, embedder: FakeEmbedd
         assert len(embedder.calls) == before
         missing = rpc("tools/call", {"name": "fetch", "arguments": {"id": "missing"}})
         assert missing["isError"] is True
+        assert missing["content"][0]["text"].endswith("Passage not found in the current index.")
         assert client.get("/sources/missing").status_code == 404
         assert client.get("/documents/missing").status_code == 404
         assert len(embedder.calls) == before

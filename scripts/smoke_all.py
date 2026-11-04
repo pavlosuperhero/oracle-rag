@@ -186,6 +186,21 @@ def run_all(executable: list[str], report: Path) -> int:
                             tools = await session.list_tools()
                             names = {tool.name for tool in tools.tools}
                             assert names == {"oracle", "oracle_sources", "search", "fetch"}, names
+                            found = await session.call_tool("search", {"query": "apple"})
+                            assert not found.is_error, found
+                            item = found.structured_content["results"][0]
+                            fetched = await session.call_tool("fetch", {"id": item["id"]})
+                            assert not fetched.is_error, fetched
+                            evidence = fetched.structured_content
+                            assert evidence["url"] == item["url"]
+                            assert "Apple" in evidence["text"]
+                            resource = await session.read_resource("oracle://passages/" + item["id"])
+                            assert json.loads(resource.contents[0].text) == evidence
+                            missing = await session.call_tool("fetch", {"id": "missing"})
+                            assert missing.is_error, missing
+                            assert missing.content[0].text.endswith(
+                                "Passage not found in the current index."
+                            )
                             result = await session.call_tool("oracle", {"query": "apple"})
                             assert not result.is_error, result
                             result = await session.call_tool("oracle_sources", {})

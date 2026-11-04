@@ -3,6 +3,10 @@
 from pydantic import BaseModel
 
 
+class PassageNotFound(LookupError):
+    """A requested identity is absent from the current evidence index."""
+
+
 class Citation(BaseModel):
     id: str
     title: str

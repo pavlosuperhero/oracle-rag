@@ -2,10 +2,12 @@ import asyncio
 from pathlib import Path
 
 import httpx
+import pytest
 from conftest import FakeEmbedder
 
 from configs.configs import Settings
 from data.index import MemoryIndex
+from models.citations import PassageNotFound
 from models.models import Query
 from runtime import runtime, server
 
@@ -46,6 +48,8 @@ def test_remote_clients_query_and_sources(
         item = await server.remote_fetch("apple", "http://testserver/", "secret", settings)
         assert item.id == "apple"
         assert item.text == result.results[0].text
+        with pytest.raises(PassageNotFound, match="Passage not found"):
+            await server.remote_fetch("missing", "http://testserver/", "secret", settings)
         assert len(embedder.calls) == before
         catalog = await server.remote_sources("http://testserver/", "secret", settings)
         assert catalog.documents == 2
