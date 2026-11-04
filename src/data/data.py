@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import ssl
 import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -155,6 +156,51 @@ def remove_resource(settings: Settings, resource_id: str) -> None:
     logger.info("Removed source registration: %s", resource_id)
 
 
+def create_ssl_context(
+    *,
+    cafile: str | Path | None = None,
+    capath: str | Path | None = None,
+) -> ssl.SSLContext:
+    """Create an SSL context configured for certificate verification.
+
+    If an explicit ``cafile`` or ``capath`` is provided, or if corporate / custom
+    certificate environment variables (``SSL_CERT_FILE``, ``SSL``, ``SSL_CAFILE``,
+    ``REQUESTS_CA_BUNDLE``, ``CURL_CA_BUNDLE``, ``SSL_CERT_DIR``) are set, they are
+    used to configure trust anchors. Otherwise, standard system default root certificates
+    are loaded via ``ssl.create_default_context()``.
+    """
+    target_cafile = (
+        str(cafile)
+        if cafile
+        else (
+            os.environ.get("SSL_CERT_FILE")
+            or os.environ.get("SSL")
+            or os.environ.get("SSL_CAFILE")
+            or os.environ.get("REQUESTS_CA_BUNDLE")
+            or os.environ.get("CURL_CA_BUNDLE")
+        )
+    ) or None
+    target_capath = (
+        str(capath)
+        if capath
+        else os.environ.get("SSL_CERT_DIR")
+    ) or None
+    try:
+        if target_cafile or target_capath:
+            ctx = ssl.create_default_context(
+                cafile=target_cafile,
+                capath=target_capath,
+            )
+            try:
+                ctx.load_default_certs()
+            except Exception:
+                pass
+            return ctx
+        return ssl.create_default_context()
+    except (OSError, ssl.SSLError) as exc:
+        raise DataError(f"Cannot initialize SSL context: {exc}") from exc
+
+
 async def download_resources_async(
     settings: Settings,
     resource_ids: Sequence[str],
@@ -163,6 +209,7 @@ async def download_resources_async(
     force: bool = False,
     progress: Callable[[DownloadProgress], None] | None = None,
     workers: int | None = None,
+    ssl_context: ssl.SSLContext | None = None,
 ) -> list[Path]:
     """Download selected sources concurrently; returned paths follow manifest order.
 
@@ -211,10 +258,15 @@ async def download_resources_async(
             paths[index] = path
 
     limits = httpx.Limits(max_connections=limit, max_keepalive_connections=limit)
+    context = ssl_context or create_ssl_context()
     try:
         async with (
-            httpx.AsyncClient(timeout=settings.data.download_timeout, follow_redirects=True,
-                              trust_env=False, limits=limits) as client,
+            httpx.AsyncClient(
+                timeout=settings.data.download_timeout,
+                follow_redirects=True,
+                verify=context,
+                limits=limits,
+            ) as client,
             asyncio.TaskGroup() as group,
         ):
             for index, (resource, download, path) in enumerate(jobs):
@@ -275,10 +327,16 @@ def download_resources(
     all_sources: bool = False,
     force: bool = False,
     progress: Callable[[DownloadProgress], None] | None = None,
+    ssl_context: ssl.SSLContext | None = None,
 ) -> list[Path]:
     return asyncio.run(
         download_resources_async(
-            settings, resource_ids, all_sources=all_sources, force=force, progress=progress
+            settings,
+            resource_ids,
+            all_sources=all_sources,
+            force=force,
+            progress=progress,
+            ssl_context=ssl_context,
         )
     )
 
