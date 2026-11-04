@@ -1,5 +1,6 @@
 import asyncio
 import json
+import ssl
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,6 +13,7 @@ from data.data import (
     Download,
     Resource,
     add_resource,
+    create_ssl_context,
     download_resources,
     download_resources_async,
     list_resources,
@@ -275,3 +277,79 @@ def test_progress_is_emitted_on_caller_thread_with_accurate_counts(data_settings
     download_resources(data_settings, [], all_sources=True, progress=cached_events.append)
     assert [event.status for event in cached_events] == ["cached"] * 3
     assert cached_events[-1].completed_files == 3
+
+
+def test_create_ssl_context_defaults(monkeypatch):
+    for var in (
+        "SSL_CERT_FILE",
+        "SSL",
+        "SSL_CAFILE",
+        "REQUESTS_CA_BUNDLE",
+        "CURL_CA_BUNDLE",
+        "SSL_CERT_DIR",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    ctx = create_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+    assert ctx.verify_mode == ssl.CERT_REQUIRED
+    assert ctx.check_hostname is True
+
+
+def test_create_ssl_context_with_explicit_cafile(tmp_path):
+    import certifi
+
+    cert_path = Path(certifi.where())
+    ctx = create_ssl_context(cafile=cert_path)
+    assert isinstance(ctx, ssl.SSLContext)
+    assert len(ctx.get_ca_certs()) > 0
+
+
+@pytest.mark.parametrize(
+    "env_var",
+    ["SSL_CERT_FILE", "SSL", "SSL_CAFILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"],
+)
+def test_create_ssl_context_env_vars(env_var, monkeypatch):
+    import certifi
+
+    for var in (
+        "SSL_CERT_FILE",
+        "SSL",
+        "SSL_CAFILE",
+        "REQUESTS_CA_BUNDLE",
+        "CURL_CA_BUNDLE",
+        "SSL_CERT_DIR",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv(env_var, certifi.where())
+    ctx = create_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+    assert len(ctx.get_ca_certs()) > 0
+
+
+def test_create_ssl_context_capath(tmp_path, monkeypatch):
+    for var in (
+        "SSL_CERT_FILE",
+        "SSL",
+        "SSL_CAFILE",
+        "REQUESTS_CA_BUNDLE",
+        "CURL_CA_BUNDLE",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("SSL_CERT_DIR", str(tmp_path))
+    ctx = create_ssl_context()
+    assert isinstance(ctx, ssl.SSLContext)
+
+
+def test_create_ssl_context_invalid_file_raises_data_error(tmp_path):
+    invalid_path = tmp_path / "nonexistent.pem"
+    with pytest.raises(DataError, match="Cannot initialize SSL context"):
+        create_ssl_context(cafile=invalid_path)
+
+
+def test_download_resources_with_custom_ssl_context(data_settings, download_server):
+    settings = data_settings
+    url, handler = download_server
+    add_resource(settings, resource(url))
+    custom_ctx = create_ssl_context()
+    path, = download_resources(settings, ["orchard"], ssl_context=custom_ctx)
+    assert path.read_bytes() == handler.body
