@@ -10,6 +10,7 @@ import time
 from collections.abc import Mapping, Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import IO, Any
 
 import httpx
 import uvicorn
@@ -151,6 +152,47 @@ def discard_stale(path: Path, state: ServiceState) -> bool:
     return True
 
 
+def _windows_spawn_options() -> tuple[int, int, Any]:
+    """Return (primary_flags, fallback_flags, startupinfo) for a hidden, detached process.
+
+    CREATE_NO_WINDOW keeps console programs from allocating a visible window, and the
+    hidden STARTUPINFO covers any window created later. CREATE_BREAKAWAY_FROM_JOB lets
+    the server outlive a launching terminal whose job object kills its children; it is
+    only in the primary flags because a job that forbids breakaway rejects it.
+    """
+    base_flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+        subprocess, "CREATE_NO_WINDOW", 0
+    )
+    if not getattr(subprocess, "CREATE_NO_WINDOW", 0):
+        base_flags |= getattr(subprocess, "DETACHED_PROCESS", 0)
+    primary_flags = base_flags | getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0)
+    startupinfo = None
+    if hasattr(subprocess, "STARTUPINFO"):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+        startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+    return primary_flags, base_flags, startupinfo
+
+
+def _spawn_detached(
+    command: Sequence[str], environment: Mapping[str, str], logs: IO[bytes]
+) -> subprocess.Popen[bytes]:
+    def popen(**platform_options: Any) -> subprocess.Popen[bytes]:
+        return subprocess.Popen(
+            command, env=environment, stdin=subprocess.DEVNULL, stdout=logs, stderr=logs,
+            **platform_options,
+        )
+
+    if os.name != "nt":
+        return popen(start_new_session=True)
+    primary_flags, fallback_flags, startupinfo = _windows_spawn_options()
+    try:
+        return popen(creationflags=primary_flags, startupinfo=startupinfo)
+    except PermissionError:
+        # The parent job object forbids breakaway; stay hidden but remain in the job.
+        return popen(creationflags=fallback_flags, startupinfo=startupinfo)
+
+
 def start_background(
     command: Sequence[str],
     environment: Mapping[str, str],
@@ -176,16 +218,8 @@ def start_background(
         child_environment = dict(environment)
         child_environment.update(ORACLE_SERVICE_STATE=str(path), ORACLE_SERVICE_TOKEN=state.token)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        flags = 0
-        if os.name == "nt":
-            flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
-                subprocess, "DETACHED_PROCESS", 0
-            )
         with log_path.open("ab") as logs:
-            process = subprocess.Popen(
-                command, env=child_environment, stdin=subprocess.DEVNULL, stdout=logs, stderr=logs,
-                start_new_session=os.name != "nt", creationflags=flags,
-            )
+            process = _spawn_detached(command, child_environment, logs)
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             if process.poll() is not None:

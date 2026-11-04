@@ -407,6 +407,15 @@ def data_download(
         typer.echo(str(path))
 
 
+def _background_python_executable() -> str:
+    """Prefer the GUI-subsystem interpreter on Windows so no console is ever allocated."""
+    if os.name == "nt":
+        pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+        if os.path.isfile(pythonw):
+            return pythonw
+    return sys.executable
+
+
 def _serve_command(
     ctx: typer.Context,
     index: Path | None,
@@ -460,7 +469,7 @@ def _serve_command(
             fail(exc)
         run_server(loaded, host, port, token)
         return
-    command = [sys.executable, "-m", "cli"]
+    command = [_background_python_executable(), "-m", "cli"]
     root_params = ctx.find_root().params
     for name, option in (
         ("config", "--config"),
