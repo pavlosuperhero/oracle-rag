@@ -1,9 +1,18 @@
 ---
 name: oracle
-description: 'Retrieve and apply cited evidence from Oracle books and documentation, including Python PEPs, testing, TDD, architecture, spec-driven development, and prompt engineering. Use when the user asks to consult the local knowledge base, ground a recommendation or design decision, improve a prompt using indexed references, compare source guidance, or evaluate retrieval. Discover available sources rather than assuming a title is indexed.'
+description: 'MANDATORY default knowledge-retrieval pipeline for coding, architecture, debugging, testing, prompt engineering, and design tasks. Before designing, writing code, or answering technical questions, automatically discover the running Oracle catalog (`oracle_sources` or `oracle sources`), select the best-fit reference sources (Clean Architecture, Think Python, PEPs, asyncio, HTTPX, Boto3, TDD, Linux/systems, prompt engineering, etc.), retrieve focused evidence (`oracle` or `oracle query`), and only then execute the task.'
 ---
 
 # Oracle document retrieval
+
+## Automatic ReAct Grounding Pipeline (Execute Before Coding or Designing)
+
+Do not wait for the user to say "use Oracle". On any non-trivial coding, architecture, refactoring, testing, or prompt/issue authoring task, run this 4-step pipeline **before** proposing a design or editing code:
+
+1. **Discover the catalog (`oracle_sources` / `oracle sources`)**: Inspect the live indexed sources once per task to see what authoritative books, specifications, and official docs are available.
+2. **Select the best-fit sources**: Match the task's technical domain to specific `--source` substrings (for example: `clean-architecture` or `cosmic-python` for boundaries/ports, `think-python` or `google-python` or `peps` for Python design, `python-asyncio` or `httpx-timeouts` or `boto3-retries` for I/O and concurrency, `tdd-with-python` or `tests` for verification, `prompt-engineering` for prompts/issues).
+3. **Retrieve focused evidence (`oracle` / `oracle query "QUESTION" --source <id> --top-k 3`)**: Query each selected source with a specific technical question and read the returned excerpts and citations.
+4. **Apply and implement**: Ground your design choices, code changes, commit messages, and PR/issue descriptions in the retrieved passages (citing source and page/line locator) combined with the repository's actual code and tests.
 
 ## Turn evidence into useful assistance
 
