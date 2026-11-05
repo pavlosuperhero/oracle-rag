@@ -227,7 +227,16 @@ the saved index is ready. By default, service logs are written to
 Stop and restart use an authenticated local control endpoint for the service
 belonging to the selected configuration, host, and port.
 
-To register and download a managed corpus, supply a direct document URL:
+The bundled catalog includes [Database Design — 2nd Edition](https://opentextbc.ca/dbdesign01/)
+(`database-design`) for data modeling, relationships, keys and normalization,
+and the [PostgreSQL 18 manual](https://www.postgresql.org/docs/18/)
+(`postgresql-18`) for SQL, indexing, transactions and administration.
+With these entries registered, run
+`oracle data download database-design postgresql-18` to download both PDFs.
+Existing user manifests are preserved during upgrades; add new entries with
+`oracle data add` if they are missing from `oracle data list`.
+
+To register and download another resource, supply a direct document URL:
 
 ```sh
 oracle data add my-book --title "My book" --url "https://example.org/book.pdf" --filename book.pdf
