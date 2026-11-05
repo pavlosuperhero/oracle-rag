@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import logging
+import socket
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -9,7 +11,11 @@ import numpy as np
 import pytest
 from aiobotocore.awsrequest import AioAWSResponse
 from aiobotocore.config import AioConfig
-from botocore.exceptions import ConnectionClosedError, ResponseStreamingError
+from botocore.exceptions import (
+    ConnectionClosedError,
+    EndpointConnectionError,
+    ResponseStreamingError,
+)
 from conftest import RecordingProgress
 from test_embeddings import GatedEmbedding, _make_settings
 
@@ -22,6 +28,7 @@ class TransportState:
     attempts: dict[str, int] = field(default_factory=dict)
     streams: list[Any] = field(default_factory=list)
     failures: int = 0
+    failure_text: str | None = None
     status: int = 200
     code: str = "AccessDeniedException"
     active: int = 0
@@ -82,7 +89,10 @@ def native_bedrock(monkeypatch: pytest.MonkeyPatch) -> tuple[BedrockEmbedding, T
             state.peak = max(state.peak, state.active)
             try:
                 await asyncio.sleep(0)
-                if state.attempts[text] <= state.failures:
+                if (
+                    state.attempts[text] <= state.failures
+                    and (state.failure_text is None or state.failure_text == text)
+                ):
                     raise ConnectionClosedError(endpoint_url=request.url)
                 payload = json.dumps(
                     {"embedding": [float(ord(text[0])), 1.0] + [0.0] * 254,
@@ -149,7 +159,7 @@ def test_exhausted_connection_updates_terminal_progress_and_cause(native_bedrock
     assert "credentials" not in str(caught.value)
     assert state.attempts == {"a": 3}  # total attempts, never 3 x SDK retries
     final = [e for e in progress.events if isinstance(e, StageAdvanced)][-1]
-    assert (final.completed, final.errors, final.retries_unknown) == (0, 1, 1)
+    assert (final.completed, final.errors, final.retries, final.retries_unknown) == (0, 1, 2, 0)
     assert not any(isinstance(e, StageFinished) for e in progress.events)
     assert "Embedding stopped: passages=0/1" in caplog.text
     assert state.closed
@@ -239,9 +249,48 @@ def test_cli_failure_summarizes_totals_and_preserves_saved_index(
         cli.app, ["--config", str(settings.path), "ingest", str(document), "--no-progress"],
     )
     assert result.exit_code == 1, result.output
-    assert "Ingestion failed: tokens in 0, known retries 0, errors 1" in result.output
-    assert "failed requests with unknown retries 1" in result.output
+    assert "Ingestion failed: tokens in 0, known retries 2, errors 1" in result.output
+    assert "failed requests with unknown retries 0" in result.output
     assert "Transport failure" in result.output
     assert settings.index_path.read_bytes() == previous
     assert "Saved" not in result.output
     assert state.closed
+
+def test_diagnostics_retain_nested_dns_cause_and_actual_attempts(native_bedrock, caplog):
+    embedder, _ = native_bedrock
+    root = socket.gaierror(socket.EAI_AGAIN, "temporary DNS failure")
+    error = EndpointConnectionError(endpoint_url="https://example.invalid", error=root)
+    with caplog.at_level(logging.INFO):
+        embedder._request_failure(error, attempts=3)
+    assert embedder.usage.snapshot() == (0, 2, 1)
+    assert embedder.usage.retries_unknown == 0
+    assert "attempts=3 total_max_attempts=3" in caplog.text
+    assert "gaierror" in caplog.text
+    assert "temporary DNS failure" in caplog.text
+
+
+def test_native_sdk_sustained_failure_and_checkpoint_resume(native_bedrock, tmp_path):
+    from storages.checkpoint import SQLiteCheckpoint
+
+    embedder, state = native_bedrock
+    texts = [f"a{n}" for n in range(1400)]
+    state.failures, state.failure_text = 10, "a1301"
+    path = tmp_path / "cache.sqlite3"
+    with SQLiteCheckpoint(path, embedder.checkpoint_identity) as cache:
+        embedder.checkpoint = cache
+        with pytest.raises(EmbeddingError, match="Transport failure"):
+            embedder.embed(texts)
+    assert state.closed
+    assert state.attempts["a1301"] == 3
+    assert embedder.usage.snapshot()[1:] == (2, 1)
+    with SQLiteCheckpoint(path, embedder.checkpoint_identity) as cache:
+        saved = asyncio.run(cache.load(texts))
+    assert len(saved) >= 1200
+    before = dict(state.attempts)
+    state.failures = 0
+    with SQLiteCheckpoint(path, embedder.checkpoint_identity) as cache:
+        embedder.checkpoint = cache
+        result = embedder.embed(texts)
+    assert result.shape == (1400, 256)
+    assert all(state.attempts[text] == before[text] for text in saved)
+    assert embedder.usage.snapshot() == (7 * (1400 - len(saved)), 0, 0)

@@ -371,6 +371,7 @@ def test_ingest_does_not_log_info_to_terminal_and_writes_rotating_log(
             "--log-level",
             "DEBUG",
             "ingest",
+            "--no-resume",
             str(docs),
         ],
     )

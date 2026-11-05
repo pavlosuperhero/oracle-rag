@@ -12,6 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from configs.configs import AiProviderConfig
+from runtime.checkpoints import EmbeddingCheckpoint, EmbeddingIdentity
 from runtime.progress import IngestProgress, NullProgress, tracked_stage
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,14 @@ class BaseEmbedding(ABC):
     dimensions: int
     model: str
     _config: AiProviderConfig
+    checkpoint: EmbeddingCheckpoint | None = None
+    checkpoint_endpoint: str = ""
+
+    @property
+    def checkpoint_identity(self) -> EmbeddingIdentity:
+        return EmbeddingIdentity(
+            self.provider_name, self.model, self.dimensions, self.checkpoint_endpoint
+        )
 
     @property
     def usage(self) -> UsageMeter:
@@ -143,8 +152,8 @@ class BaseEmbedding(ABC):
         usage = self.usage
         usage.reset()
         began = perf_counter()
-        pending = iter(unique)
         embeddings: dict[str, list[float]] = {}
+        reused = 0
         with tracked_stage(progress or NullProgress(), "embed", len(unique)) as advance:
 
             def publish() -> None:
@@ -152,20 +161,40 @@ class BaseEmbedding(ABC):
                 advance(
                     len(embeddings), tokens_in=tokens_in, retries=retries, errors=errors,
                     retries_unknown=usage.retries_unknown,
+                    reused=reused,
                 )
 
             async def worker() -> None:
                 for text in pending:
-                    embeddings[text] = await self._embed_one_async(text)
+                    vector = await self._embed_one_async(text)
+                    try:
+                        vector = normalize(
+                            np.asarray([vector], dtype=np.float32), 1, self.dimensions
+                        )[0].tolist()
+                    except EmbeddingError:
+                        usage.record_error()
+                        raise
+                    if self.checkpoint is not None:
+                        await self.checkpoint.save(text, vector)
+                    embeddings[text] = vector
                     publish()
                     number = len(embeddings)
                     if number % self._config.progress_interval == 0 or number == len(unique):
                         logger.info("Embedded %d/%d passages", number, len(unique))
 
             try:
-                async with self._async_session(), asyncio.TaskGroup() as group:
-                    for _ in range(min(workers, len(unique))):
-                        group.create_task(worker())
+                if self.checkpoint is not None:
+                    embeddings.update(await self.checkpoint.load(unique))
+                    reused = len(embeddings)
+                    if reused:
+                        logger.info("Reused %d/%d checkpointed embeddings", reused, len(unique))
+                        publish()
+                missing = [text for text in unique if text not in embeddings]
+                pending = iter(missing)
+                if missing:
+                    async with self._async_session(), asyncio.TaskGroup() as group:
+                        for _ in range(min(workers, len(missing))):
+                            group.create_task(worker())
             except BaseExceptionGroup as group_error:
                 error = group_error.exceptions[0]
                 raise error from error.__cause__

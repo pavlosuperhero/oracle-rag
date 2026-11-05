@@ -4,6 +4,7 @@ import os
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 
@@ -33,6 +34,14 @@ from embeddings.embeddings import (
 logger = logging.getLogger(__name__)
 
 _async_client: ContextVar[Any] = ContextVar("bedrock_async_client", default=None)
+
+
+@dataclass
+class _RequestAttempts:
+    count: int = 0
+
+
+_attempts: ContextVar[_RequestAttempts | None] = ContextVar("bedrock_attempts", default=None)
 
 
 class EmbeddingResponse(BaseModel):
@@ -76,6 +85,11 @@ class BedrockEmbedding(BaseEmbedding):
                     "AWS_REGION, or your AWS profile configuration."
                 )
             self._region = session.region_name
+            self.checkpoint_endpoint = json.dumps([
+                self._region, self._profile,
+                os.environ.get("AWS_ENDPOINT_URL_BEDROCK_RUNTIME"),
+                os.environ.get("AWS_ENDPOINT_URL"),
+            ])
             self._session = session
         except BotoCoreError as e:
             raise EmbeddingError(f"Cannot initialize bedrock: {e}") from e
@@ -100,6 +114,9 @@ class BedrockEmbedding(BaseEmbedding):
             async with session.create_client(
                 "bedrock-runtime", region_name=self._region, config=self._sdk_config
             ) as client:
+                client.meta.events.register(
+                    "needs-retry.bedrock-runtime.InvokeModel", self._observe_attempt
+                )
                 token = _async_client.set(client)
                 try:
                     yield
@@ -107,6 +124,24 @@ class BedrockEmbedding(BaseEmbedding):
                     _async_client.reset(token)
         except (BotoCoreError, ClientError) as exc:
             raise self._request_failure(exc) from exc
+
+    def _observe_attempt(
+        self, *, attempts: int, caught_exception: BaseException | None = None, **kwargs: Any
+    ) -> None:
+        """Observe the SDK's attempt budget without influencing its retry decisions."""
+        state = _attempts.get()
+        if state is not None:
+            state.count = max(state.count, attempts)
+        if caught_exception is not None:
+            # INFO is retained in the rotating log, without disrupting the live panel.
+            logger.info(
+                "Bedrock transport attempt failed: attempt=%d total_max_attempts=%d "
+                "model=%s region=%s connect_timeout=%s read_timeout=%s cause=%s",
+                attempts, self._config.retry_attempts, self.model, self._region,
+                self._config.connect_timeout, self._config.read_timeout,
+                type(caught_exception).__name__,
+                exc_info=(type(caught_exception), caught_exception, caught_exception.__traceback__),
+            )
 
     def _record_retries(self, response: Mapping[str, Any]) -> bool:
         metadata = response.get("ResponseMetadata", {})
@@ -117,7 +152,8 @@ class BedrockEmbedding(BaseEmbedding):
         return False
 
     def _request_failure(
-        self, exc: BotoCoreError | ClientError, *, retries_known: bool = False
+        self, exc: BotoCoreError | ClientError, *, retries_known: bool = False,
+        attempts: int | None = None,
     ) -> EmbeddingError:
         if isinstance(exc, ClientError):
             retries_known = self._record_retries(exc.response) or retries_known
@@ -148,12 +184,29 @@ class BedrockEmbedding(BaseEmbedding):
             )
         else:
             advice = "Check the AWS SDK configuration and the reported cause."
+        if not retries_known and attempts:
+            self.usage.record(retries=attempts - 1)
+            retries_known = True
+        logger.info(
+            "Bedrock failure details: attempts=%s total_max_attempts=%d",
+            attempts or "unavailable", self._config.retry_attempts,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        # Some SDK exceptions store the low-level cause in kwargs rather than __cause__.
+        underlying = getattr(exc, "kwargs", {}).get("error")
+        if isinstance(underlying, BaseException):
+            logger.info(
+                "Bedrock underlying connection error: type=%s errno=%s",
+                type(underlying).__name__, getattr(underlying, "errno", None),
+                exc_info=(type(underlying), underlying, underlying.__traceback__),
+            )
         self.usage.record_error(retries_unknown=not retries_known)
         logger.error(
             "Bedrock request failed: model=%s region=%s cause=%s "
-            "tokens_in=unknown tokens_out=n/a retries=%s",
+            "tokens_in=unknown tokens_out=n/a retries=%s attempts=%s",
             self.model, self._region, type(exc).__name__,
             "known" if retries_known else "unavailable",
+            attempts or "unavailable",
         )
         return EmbeddingError(f"Bedrock embedding request failed: {exc}. {advice}")
 
@@ -163,6 +216,8 @@ class BedrockEmbedding(BaseEmbedding):
         if client is None:
             raise EmbeddingError("Bedrock async requests are only available inside embed_async.")
         retries_known = False
+        state = _RequestAttempts()
+        token = _attempts.set(state)
         try:
             response = await client.invoke_model(
                 modelId=self.model,
@@ -182,10 +237,14 @@ class BedrockEmbedding(BaseEmbedding):
             )
             return parsed.embedding
         except (BotoCoreError, ClientError) as exc:
-            raise self._request_failure(exc, retries_known=retries_known) from exc
+            raise self._request_failure(
+                exc, retries_known=retries_known, attempts=state.count or None
+            ) from exc
         except ValidationError as exc:
             self.usage.record_error()
             raise EmbeddingError("Bedrock returned an invalid embedding response.") from exc
+        finally:
+            _attempts.reset(token)
 
     def _embed_one(self, text: str) -> list[float]:
         started = perf_counter()

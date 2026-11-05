@@ -29,6 +29,7 @@ class StageAdvanced:
     retries: int = 0  # cumulative, embed stage only
     errors: int = 0  # cumulative, embed stage only
     retries_unknown: int = 0  # failed requests without SDK retry metadata
+    reused: int = 0  # completed passages loaded from a checkpoint, no request this run
 
 
 @dataclass(frozen=True)
@@ -66,12 +67,14 @@ class TotalsRecorder(NullProgress):
         self.retries = 0
         self.errors = 0
         self.retries_unknown = 0
+        self.reused = 0
 
     def advanced(self, event: StageAdvanced) -> None:
         self.tokens_in = event.tokens_in
         self.retries = event.retries
         self.errors = event.errors
         self.retries_unknown = event.retries_unknown
+        self.reused = event.reused
 
 
 Advance = Callable[..., None]
@@ -91,9 +94,10 @@ def tracked_stage(
     def advance(
         completed: int, *, tokens_in: int = 0, retries: int = 0, errors: int = 0,
         retries_unknown: int = 0,
+        reused: int = 0,
     ) -> None:
         progress.advanced(
-            StageAdvanced(stage, completed, tokens_in, retries, errors, retries_unknown)
+            StageAdvanced(stage, completed, tokens_in, retries, errors, retries_unknown, reused)
         )
 
     yield advance
