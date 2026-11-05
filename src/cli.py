@@ -56,6 +56,7 @@ from runtime.runtime import run_saved_server, setup_logging
 from runtime.server import create_app, create_mcp, remote_fetch, remote_search, remote_sources
 from service.service import ServiceError, run_with_control, start_background, stop_background
 from storages.checkpoint import SQLiteCheckpoint, checkpoint_path
+from storages.preparation import SQLitePreparationCache, preparation_path
 from storages.storage import StorageError
 
 app = typer.Typer(
@@ -185,6 +186,10 @@ def ingest_index(
     embedder = create_embedder(region=region, profile=profile, settings=settings)
     index = MemoryIndex(embedder, settings)
     with ExitStack() as stack:
+        preparation = (
+            stack.enter_context(SQLitePreparationCache(preparation_path(destination)))
+            if resume else None
+        )
         if resume and isinstance(embedder, BaseEmbedding):
             cache_path = checkpoint_path(destination)
             embedder.checkpoint = stack.enter_context(
@@ -196,9 +201,12 @@ def ingest_index(
                 with tracked_stage(progress or NullProgress(), "discover") as advance:
                     files = managed_documents(settings)
                     advance(len(files))
-                index.build(chunk_files(files, settings.chunking, progress), progress=progress)
+                index.build(
+                    chunk_files(files, settings.chunking, progress, preparation=preparation),
+                    progress=progress,
+                )
             else:
-                index.load(path, recursive, progress=progress)
+                index.load(path, recursive, progress=progress, preparation=preparation)
             index.save(destination)
         finally:
             if isinstance(embedder, BaseEmbedding):
@@ -248,7 +256,9 @@ def ingest(
     region: Region = None,
     profile: Profile = None,
     resume: Annotated[
-        bool, typer.Option("--resume/--no-resume", help="Reuse durable embedding checkpoints.")
+        bool, typer.Option(
+            "--resume/--no-resume", help="Reuse preparation caches and embedding checkpoints."
+        )
     ] = True,
     src: Annotated[
         Path | None, typer.Option("--src", help="Additional corpus: save a separate database file.")
@@ -830,6 +840,8 @@ def clean_targets(settings: Settings, all_data: bool) -> list[Path]:
                 *root.glob("*.npz"),
                 *root.glob("*.embeddings.sqlite3"),
                 *root.glob("*.embeddings.sqlite3-journal"),
+                *root.glob("*.prepared.sqlite3"),
+                *root.glob("*.prepared.sqlite3-journal"),
             ]
         else:
             candidates = []

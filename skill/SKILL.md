@@ -191,13 +191,16 @@ to a rotating file (~/.config/oracle/logs/oracle-ingest.log by default); use
 --no-progress for plain line output without escape sequences, or --debug to
 stream logs in the terminal. Use --index PATH or ORACLE_INDEX consistently
 to select a different file. Ingestion checkpoints successful embeddings in
-<destination-index>.embeddings.sqlite3. Rerunning the same command re-extracts
-documents and reuses exact inputs with matching provider/model/dimensions and
+<destination-index>.embeddings.sqlite3. Rerunning the same command validates file content hashes and reuses complete
+prepared sections/chunks from <destination-index>.prepared.sqlite3, then reuses
+exact embedding inputs with matching provider/model/dimensions and
 endpoint/region identity; only missing passages require new embedding requests.
 The checkpoint persists after success. --no-resume bypasses checkpoint reads and
-writes without erasing an existing checkpoint. If model weights change under the
+writes for both preparation and embeddings without erasing existing caches. If model weights change under the
 same endpoint and model name, remove the checkpoint before rebuilding. Checkpoints
-contain hashes and vectors; protect them like indexes. The final database is only
+contain hashes and vectors; preparation caches contain extracted text and
+citations. Protect both like indexes. Parser code/library changes invalidate
+preparation; changed chunk settings rebuild chunks while reusing extraction. The final database is only
 replaced after successful ingestion; failed runs preserve the previous database.
 Reused counts are separate from token/retry totals for the current run.
 Documents are extracted and passages embedded
@@ -248,7 +251,7 @@ and writes INFO/DEBUG logs to ~/.config/oracle/logs/oracle-download.log (use
 stream logs in the terminal).
 Use oracle sources or oracle_sources to inspect the actual running RAG.
 
-oracle clean asks for confirmation before deleting database files and embedding checkpoints.
+oracle clean asks for confirmation before deleting database files, document preparation caches and embedding checkpoints.
 oracle clean --all also clears data files and the managed source manifest.
 Do not confirm destructive cleanup on the user's behalf without authorization.
 Back up custom manifest entries first. Restart the server after ingest/cleanup.

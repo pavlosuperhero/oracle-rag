@@ -89,6 +89,7 @@ class _Row:
     completed: int = 0
     began: float | None = None
     elapsed: float | None = None
+    reused: int = 0
 
 
 class RichIngestProgress(TotalsRecorder):
@@ -137,6 +138,7 @@ class RichIngestProgress(TotalsRecorder):
     def advanced(self, event: StageAdvanced) -> None:
         super().advanced(event)
         self._rows[event.stage].completed = event.completed
+        self._rows[event.stage].reused = event.reused
         if event.stage == "embed":
             self._embed_progress.update(self._embed_task, completed=event.completed)
 
@@ -175,7 +177,10 @@ class RichIngestProgress(TotalsRecorder):
             return grid
         count = f"{row.completed:,}" if row.total is None else f"{row.completed:,}/{row.total:,}"
         if row.elapsed is not None:
-            grid.add_row(prefix, Text(f"{count} {unit:<10} done   {format_duration(row.elapsed)}"))
+            reuse = f"   reused: {row.reused:,}" if row.reused else ""
+            grid.add_row(
+                prefix, Text(f"{count} {unit:<10} done   {format_duration(row.elapsed)}{reuse}")
+            )
             return grid
         if stage == "embed" and row.total:
             return self._embed_progress
@@ -196,6 +201,7 @@ class PlainIngestProgress(TotalsRecorder):
         self._log_path = log_path
         self._totals: dict[Stage, int | None] = {}
         self._completed: dict[Stage, int] = {}
+        self._reused: dict[Stage, int] = {}
         self._decile: dict[Stage, int] = {}
         self._last_print = monotonic()
 
@@ -229,6 +235,7 @@ class PlainIngestProgress(TotalsRecorder):
         super().advanced(event)
         stage, total = event.stage, self._totals.get(event.stage)
         self._completed[stage] = event.completed
+        self._reused[stage] = event.reused
         if not total:
             return
         decile = event.completed * 10 // total
@@ -244,9 +251,11 @@ class PlainIngestProgress(TotalsRecorder):
 
     def finished(self, event: StageFinished) -> None:
         unit = LABELS[event.stage][1]
+        reused = self._reused.get(event.stage, 0)
+        reuse = f"  reused: {reused:,}" if reused else ""
         self._print(
             f"{stage_prefix(event.stage)} done: {self._completed.get(event.stage, 0):,} {unit} "
-            f"in {format_duration(event.elapsed)}"
+            f"in {format_duration(event.elapsed)}{reuse}"
         )
 
 

@@ -181,7 +181,7 @@ def test_cli_resume_preserves_published_index_and_no_resume_bypasses_cache(
     first.failing = {"\nb"}
     monkeypatch.setattr(cli, "create_embedder", lambda **kwargs: first)
     monkeypatch.setattr(cli, "managed_documents", lambda settings: [])
-    monkeypatch.setattr(cli, "chunk_files", lambda *args: chunks)
+    monkeypatch.setattr(cli, "chunk_files", lambda *args, **kwargs: chunks)
     with pytest.raises(EmbeddingError):
         cli.ingest_index(None, False, settings.index_path, None, None, settings)
     assert settings.index_path.read_bytes() == previous

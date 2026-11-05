@@ -1,6 +1,34 @@
 {
   "resources": [
     {
+      "id": "database-design",
+      "title": "Database Design — 2nd Edition",
+      "source": "https://opentextbc.ca/dbdesign01/",
+      "author": "Adrienne Watt and Nelson Eng",
+      "license": "CC BY 4.0, except where otherwise noted; preserve the book's attribution and third-party notices.",
+      "note": "Full introductory textbook on organizing relational data: data models, entity relationships, keys, integrity constraints, functional dependencies, normalization, database development and SQL exercises. Downloads the eCampusOntario Open Library edition (https://openlibrary-repo.ecampusontario.ca/jspui/handle/123456789/247); the BCcampus source page also provides the book for free.",
+      "downloads": [
+        {
+          "filename": "database-design-2e.pdf",
+          "url": "https://openlibrary-repo.ecampusontario.ca/jspui/bitstream/123456789/247/16/Database-Design-2nd-Edition-1540829576.pdf"
+        }
+      ]
+    },
+    {
+      "id": "postgresql-18",
+      "title": "PostgreSQL 18 — Official Documentation",
+      "source": "https://www.postgresql.org/docs/18/",
+      "author": "The PostgreSQL Global Development Group",
+      "license": "PostgreSQL License; preserve the copyright and permission notices in the documentation's Legal Notice.",
+      "note": "Full version-specific reference manual with tutorial, SQL, schema design, data types, constraints, indexes, transactions, concurrency, performance tuning, administration, backup and replication. The publisher updates this PDF for PostgreSQL 18 minor releases; check applicability to the deployed server version.",
+      "downloads": [
+        {
+          "filename": "postgresql-18-A4.pdf",
+          "url": "https://www.postgresql.org/files/documentation/pdf/18/postgresql-18-A4.pdf"
+        }
+      ]
+    },
+    {
       "id": "multiagent-systems-foundations",
       "title": "Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations",
       "source": "https://www.masfoundations.org/download.html",
