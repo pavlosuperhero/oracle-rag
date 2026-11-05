@@ -156,7 +156,8 @@ oracle query "What do these documents say about caching?" --format text
 Ingestion saves the index; serving restores it without embedding documents again.
 Ingestion checkpoints each successful unique embedding in
 `<destination-index>.embeddings.sqlite3`. After a failure or interruption, rerun
-the same command: extraction runs again, but completed embeddings are reused.
+the same command: unchanged documents reuse prepared text and chunks, and
+completed embeddings are reused.
 The checkpoint is retained after success, so unchanged inputs also avoid requests
 on later rebuilds. Progress and the summary report reused embeddings; token and
 retry totals describe requests made in the current run only.
@@ -165,12 +166,20 @@ Reuse requires matching provider, model, dimensions, endpoint/region identity,
 and exact input (including document title). Changed passages are embedded again.
 For an endpoint serving different model weights under the same model name, remove
 its checkpoint before rebuilding. `oracle ingest --no-resume` bypasses checkpoint
-reads and writes for that run; it does not erase or refresh an existing checkpoint.
+reads and writes, including document preparation, for that run; it does not erase
+or refresh existing caches.
 Checkpoint rows contain input hashes and vectors, with checksums and shape/finite
 validation. Invalid rows are recomputed; an unreadable database stops ingestion
 with a storage error. SQLite commits every vector durably in a worker thread,
 which adds disk I/O. Protect checkpoints like saved indexes. `oracle clean`
-includes checkpoints in its existing confirmed cleanup.
+includes preparation caches and checkpoints in its existing confirmed cleanup.
+
+Extracted sections and chunk lists are stored per file in
+`<destination-index>.prepared.sqlite3`. File content hashes and parser code/library
+versions validate reuse; chunk settings additionally validate chunk lists. Retries
+still discover and hash files, but skip unchanged extraction and chunking. Completed
+files survive a later file failure. See [ingestion recovery and VDI checks](docs/ingestion-recovery.md)
+for completeness guarantees, invalidation behavior and a connection diagnostic checklist.
 
 The usable `.npz` index is still replaced only after the complete ingestion
 succeeds. A failed rebuild leaves it intact. Library embedding calls and search

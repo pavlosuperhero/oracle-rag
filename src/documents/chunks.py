@@ -5,6 +5,7 @@ import os
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
+from importlib.metadata import version
 from pathlib import Path
 
 from bs4 import BeautifulSoup, Comment
@@ -12,6 +13,7 @@ from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
 from configs.configs import ChunkingConfig, Settings, load_config
+from runtime.preparation import PreparationCache
 from runtime.progress import IngestProgress, NullProgress, tracked_stage
 
 logger = logging.getLogger(__name__)
@@ -272,12 +274,27 @@ def chunk_sections(
     return chunks
 
 
+def file_fingerprint(path: Path) -> str:
+    """Hash bytes, rather than trusting file size or modification timestamps."""
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def preparation_policy() -> str:
+    """Invalidate preparation after parser code or extraction dependency changes."""
+    policy = (
+        file_fingerprint(Path(__file__)), version("pypdf"), version("beautifulsoup4"),
+    )
+    return hashlib.sha256(repr(policy).encode()).hexdigest()
+
+
 async def chunk_files_async(
     files: Sequence[Path],
     config: ChunkingConfig,
     progress: IngestProgress | None = None,
     *,
     workers: int = DEFAULT_EXTRACT_WORKERS,
+    preparation: PreparationCache | None = None,
 ) -> list[Chunk]:
     """Extract files in worker threads, then split them into passages.
 
@@ -285,37 +302,77 @@ async def chunk_files_async(
     file finishes first. Progress is reported from the event-loop thread as files complete.
     """
     progress = progress or NullProgress()
+    if preparation is not None:
+        files = [file.expanduser().resolve() for file in files]
     results: list[list[Section] | None] = [None] * len(files)
+    fingerprints = [""] * len(files)
+    policy = await asyncio.to_thread(preparation_policy) if preparation is not None else ""
     semaphore = asyncio.Semaphore(max(1, workers))
 
     with tracked_stage(progress, "extract", len(files)) as advance:
         completed = 0
+        reused = 0
 
         async def read(index: int, file: Path) -> None:
-            nonlocal completed
+            nonlocal completed, reused
             async with semaphore:
-                results[index] = await asyncio.to_thread(extract, file)
+                if preparation is None:
+                    results[index] = await asyncio.to_thread(extract, file)
+                else:
+                    fingerprint = await asyncio.to_thread(file_fingerprint, file)
+                    fingerprints[index] = fingerprint
+                    sections = await preparation.load_sections(file, fingerprint, policy)
+                    if sections is None:
+                        sections = await asyncio.to_thread(extract, file)
+                        if await asyncio.to_thread(file_fingerprint, file) != fingerprint:
+                            raise DocumentError(f"Document changed during extraction: {file}")
+                        await preparation.save_sections(file, fingerprint, policy, sections)
+                    else:
+                        reused += 1
+                    results[index] = sections
             completed += 1
-            advance(completed)
+            advance(completed, reused=reused)
 
         try:
             async with asyncio.TaskGroup() as group:
                 for index, file in enumerate(files):
                     group.create_task(read(index, file))
         except BaseExceptionGroup as group_error:
-            raise group_error.exceptions[0] from None
+            error = group_error.exceptions[0]
+            raise error from error.__cause__
+    if preparation is not None:
+        logger.info("Reused extraction for %d/%d files", reused, len(files))
     sections = [section for result in results if result for section in result]
     with tracked_stage(progress, "chunk") as advance:
-        chunks = chunk_sections(sections, config.size, config.overlap)
-        advance(len(chunks))
+        if preparation is None:
+            chunks = chunk_sections(sections, config.size, config.overlap)
+            advance(len(chunks))
+        else:
+            chunks = []
+            reused_chunks = 0
+            chunk_policy = f"{policy}:{config.size}:{config.overlap}"
+            for file, fingerprint, result in zip(files, fingerprints, results, strict=True):
+                cached_chunks = await preparation.load_chunks(file, fingerprint, chunk_policy)
+                if cached_chunks is None:
+                    prepared: list[Chunk] = await asyncio.to_thread(
+                        chunk_sections, result or [], config.size, config.overlap
+                    )
+                    await preparation.save_chunks(file, fingerprint, chunk_policy, prepared)
+                else:
+                    prepared = cached_chunks
+                    reused_chunks += len(prepared)
+                chunks.extend(prepared)
+                advance(len(chunks), reused=reused_chunks)
+            logger.info("Reused %d/%d prepared passages", reused_chunks, len(chunks))
     return chunks
 
 
 def chunk_files(
-    files: Sequence[Path], config: ChunkingConfig, progress: IngestProgress | None = None
+    files: Sequence[Path], config: ChunkingConfig, progress: IngestProgress | None = None,
+    *, preparation: PreparationCache | None = None,
 ) -> list[Chunk]:
     """Extract text from discovered files and split it into passages, reporting progress."""
-    return asyncio.run(chunk_files_async(files, config, progress))
+    return asyncio.run(chunk_files_async(files, config, progress, preparation=preparation))
 
 
 async def load_chunks_async(
@@ -325,12 +382,15 @@ async def load_chunks_async(
     progress: IngestProgress | None = None,
     *,
     workers: int = DEFAULT_EXTRACT_WORKERS,
+    preparation: PreparationCache | None = None,
 ) -> list[Chunk]:
     config = (settings or load_config()).chunking
     with tracked_stage(progress or NullProgress(), "discover") as advance:
         files = discover(path, recursive)
         advance(len(files))
-    chunks = await chunk_files_async(files, config, progress, workers=workers)
+    chunks = await chunk_files_async(
+        files, config, progress, workers=workers, preparation=preparation
+    )
     if not chunks:
         raise DocumentError(f"No readable document text found in {path}")
     return chunks
@@ -341,5 +401,8 @@ def load_chunks(
     recursive: bool = False,
     settings: Settings | None = None,
     progress: IngestProgress | None = None,
+    *, preparation: PreparationCache | None = None,
 ) -> list[Chunk]:
-    return asyncio.run(load_chunks_async(path, recursive, settings, progress))
+    return asyncio.run(
+        load_chunks_async(path, recursive, settings, progress, preparation=preparation)
+    )

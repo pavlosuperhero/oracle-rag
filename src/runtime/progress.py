@@ -29,7 +29,7 @@ class StageAdvanced:
     retries: int = 0  # cumulative, embed stage only
     errors: int = 0  # cumulative, embed stage only
     retries_unknown: int = 0  # failed requests without SDK retry metadata
-    reused: int = 0  # completed passages loaded from a checkpoint, no request this run
+    reused: int = 0  # files/passages reused in this stage
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,8 @@ class TotalsRecorder(NullProgress):
         self.retries = event.retries
         self.errors = event.errors
         self.retries_unknown = event.retries_unknown
-        self.reused = event.reused
+        if event.stage == "embed":
+            self.reused = event.reused
 
 
 Advance = Callable[..., None]

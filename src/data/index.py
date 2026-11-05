@@ -14,6 +14,7 @@ from configs.configs import Settings, load_config
 from documents.chunks import Chunk, DocumentError, load_chunks
 from embeddings.embeddings import Embedder, normalize
 from models.models import IndexStats, Passage, Query, SearchResult, SourceCatalog, SourceInfo
+from runtime.preparation import PreparationCache
 from runtime.progress import IngestProgress
 from storages.storage import StorageError, StoredIndex, read_index, write_index
 
@@ -55,9 +56,13 @@ class MemoryIndex:
         )
 
     def load(
-        self, path: Path, recursive: bool = False, *, progress: IngestProgress | None = None
+        self, path: Path, recursive: bool = False, *, progress: IngestProgress | None = None,
+        preparation: PreparationCache | None = None,
     ) -> IndexStats:
-        return self.build(load_chunks(path, recursive, self.settings, progress), progress=progress)
+        return self.build(
+            load_chunks(path, recursive, self.settings, progress, preparation=preparation),
+            progress=progress,
+        )
 
     def fetch(self, passage_id: str) -> Chunk:
         """Read an indexed passage by identity, without embedding or searching."""
