@@ -211,6 +211,7 @@ def ingest_index(
         finally:
             if isinstance(embedder, BaseEmbedding):
                 embedder.checkpoint = None
+            index.close()
     return index
 
 

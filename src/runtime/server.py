@@ -162,8 +162,11 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        async with mcp_app.router.lifespan_context(mcp_app):
-            yield
+        try:
+            async with mcp_app.router.lifespan_context(mcp_app):
+                yield
+        finally:
+            index.close()
 
     app = FastAPI(title="Oracle RAG", version="0.1.0", lifespan=lifespan)
     app.add_middleware(

@@ -129,20 +129,23 @@ To use Bedrock, set `provider.provider: Bedrock`,
 `provider.model: amazon.titan-embed-text-v2:0`, and configure an AWS region and
 credentials. Both ingestion and serving select the configured provider.
 
-Bedrock requests use native asynchronous I/O through aiobotocore on Linux and
-macOS. On Windows, the async pipeline runs blocking boto3 calls in worker threads
-with a client per request to avoid reported persistent-connection WinError 64 resets.
-The synchronous `embed()` API drives the same pipeline. OpenAI-compatible requests use
-HTTPX's async client. Embedding creates at most `provider.worker` worker tasks
-and preserves input order while embedding duplicate passages only once. On failure
-or cancellation, pending workers settle and the per-call async client and response
-bodies close before the operation exits.
+Bedrock uses synchronous boto3 requests on every platform, with one reusable
+client and a dedicated thread pool sized by `provider.worker`. These resources
+are created on first use and survive repeated `embed()` calls and event loops.
+The synchronous `embed()` API drives the shared async pipeline, which preserves
+input order and embeds duplicate passages only once. OpenAI-compatible requests
+use HTTPX's async client.
 
-On Windows, cancelling a worker cannot interrupt an in-flight boto3 call; its
-client and response body close when that call settles, subject to SDK timeouts.
-This transport fallback does not authenticate to corporate proxies. If your
-network requires proxy authentication, configure an approved authenticated proxy
-and the appropriate `HTTPS_PROXY` setting separately.
+On failure or cancellation, pending workers settle and response bodies close
+before the operation exits. Running boto3 calls cannot be interrupted, so
+cancellation waits for them to settle, subject to SDK timeouts and retry backoff.
+Ingestion and server shutdown release the client and thread pool; library callers
+should call `BedrockEmbedding.close()` after use. A later call recreates resources.
+
+Bedrock request JSON encodes `/` as `\/`, preserving the decoded input text. This
+addresses reported proxy resets on request bodies containing literal file paths.
+It does not add proxy authentication; networks requiring authentication still
+need an authenticated proxy configuration and the appropriate `HTTPS_PROXY` setting.
 
 Bedrock uses the SDK's standard retry policy: `provider.retry_attempts` is the
 maximum **total attempts**, including the first request. There is no additional
@@ -150,8 +153,7 @@ application retry layer. Transport failures before a response can be retried by
 the SDK; failures while reading a streaming response body stop ingestion, since
 SDK retries do not cover that read. Failed ingestion leaves the previous index
 intact. Logs record effective worker, connection/read timeout, and retry settings.
-The async SDK constrains compatible botocore versions; keep the resolved boto3,
-botocore, and aiobotocore versions together when updating dependencies.
+The SDK retry observer records attempts independently for each worker request.
 
 ```sh
 oracle ingest /path/to/documents --recursive

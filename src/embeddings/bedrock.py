@@ -1,16 +1,16 @@
+import asyncio
 import json
 import logging
 import os
-import sys
-from collections.abc import AsyncGenerator, Mapping
-from contextlib import asynccontextmanager
+from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from dataclasses import dataclass
+from threading import Lock
 from time import perf_counter
 from typing import Any
 
 import boto3
-from aiobotocore.session import get_session
 from botocore.config import Config
 from botocore.exceptions import (
     BotoCoreError,
@@ -33,8 +33,6 @@ from embeddings.embeddings import (
 )
 
 logger = logging.getLogger(__name__)
-
-_async_client: ContextVar[Any] = ContextVar("bedrock_async_client", default=None)
 
 
 @dataclass
@@ -92,11 +90,14 @@ class BedrockEmbedding(BaseEmbedding):
                 os.environ.get("AWS_ENDPOINT_URL"),
             ])
             self._session = session
+            self._client: Any = None
+            self._executor: ThreadPoolExecutor | None = None
+            self._resource_lock = Lock()
         except BotoCoreError as e:
             raise EmbeddingError(f"Cannot initialize bedrock: {e}") from e
         logger.info(
             "Bedrock configured: model=%s region=%s dimensions=%d workers=%d "
-            "connect_timeout=%s read_timeout=%s total_max_attempts=%d transport=%s",
+            "connect_timeout=%s read_timeout=%s total_max_attempts=%d transport=boto3-sync",
             self.model,
             self._region,
             self.dimensions,
@@ -104,32 +105,18 @@ class BedrockEmbedding(BaseEmbedding):
             connect_timeout,
             config.read_timeout,
             config.retry_attempts,
-            "boto3-thread" if sys.platform == "win32" else "aiobotocore",
         )
 
-    @asynccontextmanager
-    async def _async_session(self) -> AsyncGenerator[None]:
-        # Avoid persistent async connections on Windows (reported WinError 64 resets).
-        if sys.platform == "win32":
-            yield
-            return
-        session = get_session()
-        if self._profile:
-            session.set_config_variable("profile", self._profile)
-        try:
-            async with session.create_client(
-                "bedrock-runtime", region_name=self._region, config=self._sdk_config
-            ) as client:
-                client.meta.events.register(
-                    "needs-retry.bedrock-runtime.InvokeModel", self._observe_attempt
-                )
-                token = _async_client.set(client)
-                try:
-                    yield
-                finally:
-                    _async_client.reset(token)
-        except (BotoCoreError, ClientError) as exc:
-            raise self._request_failure(exc) from exc
+    def close(self) -> None:
+        """Release pooled resources after callers have settled; later calls reopen them."""
+        with self._resource_lock:
+            executor, self._executor = self._executor, None
+        if executor is not None:
+            executor.shutdown(wait=True, cancel_futures=True)
+        with self._resource_lock:
+            client, self._client = self._client, None
+        if client is not None:
+            client.close()
 
     def _observe_attempt(
         self, *, attempts: int, caught_exception: BaseException | None = None, **kwargs: Any
@@ -217,61 +204,58 @@ class BedrockEmbedding(BaseEmbedding):
         return EmbeddingError(f"Bedrock embedding request failed: {exc}. {advice}")
 
     async def _embed_one_async(self, text: str) -> list[float]:
-        if sys.platform == "win32":
-            return await super()._embed_one_async(text)
-        validate_embedding_input(text)
-        client = _async_client.get()
-        if client is None:
-            raise EmbeddingError("Bedrock async requests are only available inside embed_async.")
-        retries_known = False
-        state = _RequestAttempts()
-        token = _attempts.set(state)
+        # Own the pool so repeated asyncio.run() calls keep the same threads and client.
+        loop = asyncio.get_running_loop()
+        with self._resource_lock:
+            if self._executor is None:
+                self._executor = ThreadPoolExecutor(
+                    max_workers=self._config.workers, thread_name_prefix="bedrock-embed"
+                )
+            future = loop.run_in_executor(self._executor, self._embed_one, text)
         try:
-            response = await client.invoke_model(
-                modelId=self.model,
-                contentType="application/json",
-                accept="application/json",
-                body=json.dumps(
-                    {"inputText": text, "dimensions": self.dimensions, "normalize": True}
-                ),
-            )
-            retries_known = self._record_retries(response)
-            async with response["body"] as body:
-                parsed = EmbeddingResponse.model_validate_json(await body.read())
-            self.usage.record(parsed.inputTextTokenCount)
-            logger.debug(
-                "Bedrock response: model=%s region=%s tokens_in=%d tokens_out=n/a dimensions=%d",
-                self.model, self._region, parsed.inputTextTokenCount, len(parsed.embedding),
-            )
-            return parsed.embedding
-        except (BotoCoreError, ClientError) as exc:
-            raise self._request_failure(
-                exc, retries_known=retries_known, attempts=state.count or None
-            ) from exc
-        except ValidationError as exc:
-            self.usage.record_error()
-            raise EmbeddingError("Bedrock returned an invalid embedding response.") from exc
-        finally:
-            _attempts.reset(token)
+            return await asyncio.shield(future)
+        except asyncio.CancelledError:
+            # A running SDK call cannot be cancelled. Settle it before publishing totals
+            # or allowing a later batch to reset the shared usage meter.
+            try:
+                await future
+            except Exception:
+                pass  # The request path already records its failure; preserve cancellation.
+            raise
 
     def _embed_one(self, text: str) -> list[float]:
         started = perf_counter()
         validate_embedding_input(text)
-        retries_known = False
+        logger.debug(
+            "Embedding input: model=%s region=%s content=%r", self.model, self._region, text
+        )
+        state = _RequestAttempts()
+        token = _attempts.set(state)
         try:
-            logger.debug(
-                "Embedding input: model=%s region=%s content=%r",
-                self.model,
-                self._region,
-                text,
-            )
-            client = self._session.client("bedrock-runtime", config=self._sdk_config)
-            try:
-                return self._embed_one_sync(client, text, started)
-            finally:
-                client.close()
+            with self._resource_lock:
+                if self._client is None:
+                    client = self._session.client("bedrock-runtime", config=self._sdk_config)
+                    try:
+                        client.meta.events.register(
+                            "needs-retry.bedrock-runtime.InvokeModel", self._observe_attempt
+                        )
+                    except BaseException:
+                        client.close()
+                        raise
+                    self._client = client
+                client = self._client
+            return self._embed_one_sync(client, text, started)
         except (BotoCoreError, ClientError) as exc:
-            raise self._request_failure(exc, retries_known=retries_known) from exc
+            # SDK errors from client initialization have no response metadata.
+            raise self._request_failure(exc, attempts=state.count or None) from exc
+        finally:
+            _attempts.reset(token)
+
+    @staticmethod
+    def _request_body(text: str, dimensions: int) -> str:
+        """Encode equivalent JSON without literal path separators in string values."""
+        body = json.dumps({"inputText": text, "dimensions": dimensions, "normalize": True})
+        return body.replace("/", "\\/")
 
     def _embed_one_sync(self, client: Any, text: str, started: float) -> list[float]:
         retries_known = False
@@ -280,9 +264,7 @@ class BedrockEmbedding(BaseEmbedding):
                 modelId=self.model,
                 contentType="application/json",
                 accept="application/json",
-                body=json.dumps(
-                    {"inputText": text, "dimensions": self.dimensions, "normalize": True}
-                ),
+                body=self._request_body(text, self.dimensions),
             )
             retries_known = self._record_retries(response)
             with response["body"] as body:
@@ -299,7 +281,10 @@ class BedrockEmbedding(BaseEmbedding):
             )
             return parsed.embedding
         except (BotoCoreError, ClientError) as exc:
-            raise self._request_failure(exc, retries_known=retries_known) from exc
+            state = _attempts.get()
+            raise self._request_failure(
+                exc, retries_known=retries_known, attempts=state.count if state else None
+            ) from exc
         except ValidationError as exc:
             self.usage.record_error()
             raise EmbeddingError("Bedrock returned an invalid embedding response.") from exc
