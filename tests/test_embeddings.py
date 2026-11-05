@@ -3,6 +3,7 @@ import io
 import json
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -87,6 +88,7 @@ def _bedrock_body(embedding: list[float], tokens: int = 6) -> MagicMock:
 
 def _mock_async_bedrock(monkeypatch: pytest.MonkeyPatch, sync_client: MagicMock) -> None:
     """Adapt existing response fixtures to the native client's async interface."""
+    monkeypatch.setattr("embeddings.bedrock.sys", SimpleNamespace(platform="linux"))
     async def invoke(**kwargs: Any) -> dict[str, Any]:
         response = sync_client.invoke_model(**kwargs)
         stream = response["body"]
@@ -722,3 +724,65 @@ def test_bedrock_async_uses_native_client_on_the_event_loop(
     vectors = asyncio.run(embedder.embed_async(["a", "b"]))
     assert vectors.shape == (2, 256)
     assert threads == {threading.get_ident()}
+
+
+def test_windows_bedrock_uses_threaded_clients_and_preserves_results(monkeypatch) -> None:
+    monkeypatch.setattr("embeddings.bedrock.sys", SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(
+        "embeddings.bedrock.get_session",
+        lambda: pytest.fail("Windows must not create an aiobotocore session"),
+    )
+    session = MagicMock()
+    session.region_name = "us-east-1"
+    clients: list[MagicMock] = []
+    threads: set[int] = set()
+
+    def make_client(*args: Any, **kwargs: Any) -> MagicMock:
+        threads.add(threading.get_ident())
+        client = MagicMock()
+        client.invoke_model.return_value = {
+            "body": _bedrock_body([3.0, 4.0] + [0.0] * 254, tokens=7),
+            "ResponseMetadata": {"RetryAttempts": 1},
+        }
+        clients.append(client)
+        return client
+
+    session.client.side_effect = make_client
+    monkeypatch.setattr("embeddings.bedrock.boto3.Session", lambda **kw: session)
+    embedder = BedrockEmbedding(settings=_make_settings(
+        provider="Bedrock", model="amazon.titan-embed-text-v2:0", dimensions=256,
+    ))
+    vectors = asyncio.run(embedder.embed_async(["a", "b", "a"]))
+    assert vectors.shape == (3, 256)
+    np.testing.assert_allclose(vectors[:, :2], [[0.6, 0.8]] * 3)
+    assert len(clients) == 2
+    assert threads and threading.get_ident() not in threads
+    assert embedder.usage.snapshot() == (14, 2, 0)
+    for client in clients:
+        client.close.assert_called_once()
+        client.invoke_model.return_value["body"].__exit__.assert_called_once()
+
+
+@pytest.mark.parametrize("failure", ["service", "response"])
+def test_windows_bedrock_closes_client_on_failure(monkeypatch, failure) -> None:
+    monkeypatch.setattr("embeddings.bedrock.sys", SimpleNamespace(platform="win32"))
+    session = MagicMock()
+    session.region_name = "us-east-1"
+    client = session.client.return_value
+    if failure == "service":
+        client.invoke_model.side_effect = ClientError(
+            {"Error": {"Code": "AccessDeniedException", "Message": "Denied"},
+             "ResponseMetadata": {"RetryAttempts": 0}}, "InvokeModel",
+        )
+    else:
+        stream = _bedrock_body([1.0] * 256)
+        stream.__enter__.return_value = io.BytesIO(b'{"wrong": "schema"}')
+        client.invoke_model.return_value = {"body": stream}
+    monkeypatch.setattr("embeddings.bedrock.boto3.Session", lambda **kw: session)
+    embedder = BedrockEmbedding(settings=_make_settings(
+        provider="Bedrock", model="amazon.titan-embed-text-v2:0", dimensions=256,
+    ))
+    with pytest.raises(EmbeddingError):
+        embedder.embed(["hello"])
+    client.close.assert_called_once()
+    assert embedder.usage.snapshot()[2] == 1

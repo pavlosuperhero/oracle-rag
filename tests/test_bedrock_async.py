@@ -5,6 +5,7 @@ import json
 import logging
 import socket
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -42,6 +43,7 @@ class TransportState:
 
 @pytest.fixture
 def native_bedrock(monkeypatch: pytest.MonkeyPatch) -> tuple[BedrockEmbedding, TransportState]:
+    monkeypatch.setattr("embeddings.bedrock.sys", SimpleNamespace(platform="linux"))
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.delenv("AWS_PROFILE", raising=False)

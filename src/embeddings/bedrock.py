@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -95,7 +96,7 @@ class BedrockEmbedding(BaseEmbedding):
             raise EmbeddingError(f"Cannot initialize bedrock: {e}") from e
         logger.info(
             "Bedrock configured: model=%s region=%s dimensions=%d workers=%d "
-            "connect_timeout=%s read_timeout=%s total_max_attempts=%d transport=aiobotocore",
+            "connect_timeout=%s read_timeout=%s total_max_attempts=%d transport=%s",
             self.model,
             self._region,
             self.dimensions,
@@ -103,10 +104,15 @@ class BedrockEmbedding(BaseEmbedding):
             connect_timeout,
             config.read_timeout,
             config.retry_attempts,
+            "boto3-thread" if sys.platform == "win32" else "aiobotocore",
         )
 
     @asynccontextmanager
     async def _async_session(self) -> AsyncGenerator[None]:
+        # Avoid persistent async connections on Windows (reported WinError 64 resets).
+        if sys.platform == "win32":
+            yield
+            return
         session = get_session()
         if self._profile:
             session.set_config_variable("profile", self._profile)
@@ -211,6 +217,8 @@ class BedrockEmbedding(BaseEmbedding):
         return EmbeddingError(f"Bedrock embedding request failed: {exc}. {advice}")
 
     async def _embed_one_async(self, text: str) -> list[float]:
+        if sys.platform == "win32":
+            return await super()._embed_one_async(text)
         validate_embedding_input(text)
         client = _async_client.get()
         if client is None:

@@ -129,12 +129,20 @@ To use Bedrock, set `provider.provider: Bedrock`,
 `provider.model: amazon.titan-embed-text-v2:0`, and configure an AWS region and
 credentials. Both ingestion and serving select the configured provider.
 
-Bedrock requests use native asynchronous I/O through aiobotocore; the synchronous
-`embed()` API drives the same async pipeline. OpenAI-compatible requests use
+Bedrock requests use native asynchronous I/O through aiobotocore on Linux and
+macOS. On Windows, the async pipeline runs blocking boto3 calls in worker threads
+with a client per request to avoid reported persistent-connection WinError 64 resets.
+The synchronous `embed()` API drives the same pipeline. OpenAI-compatible requests use
 HTTPX's async client. Embedding creates at most `provider.worker` worker tasks
 and preserves input order while embedding duplicate passages only once. On failure
 or cancellation, pending workers settle and the per-call async client and response
 bodies close before the operation exits.
+
+On Windows, cancelling a worker cannot interrupt an in-flight boto3 call; its
+client and response body close when that call settles, subject to SDK timeouts.
+This transport fallback does not authenticate to corporate proxies. If your
+network requires proxy authentication, configure an approved authenticated proxy
+and the appropriate `HTTPS_PROXY` setting separately.
 
 Bedrock uses the SDK's standard retry policy: `provider.retry_attempts` is the
 maximum **total attempts**, including the first request. There is no additional
