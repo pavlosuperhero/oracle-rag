@@ -4,7 +4,7 @@ import json
 import threading
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import httpx
 import numpy as np
@@ -83,27 +83,6 @@ def _bedrock_body(embedding: list[float], tokens: int = 6) -> MagicMock:
     stream.__enter__.return_value = io.BytesIO(payload)
     stream.__exit__.return_value = False
     return stream
-
-
-def _mock_async_bedrock(monkeypatch: pytest.MonkeyPatch, sync_client: MagicMock) -> None:
-    """Adapt existing response fixtures to the native client's async interface."""
-    async def invoke(**kwargs: Any) -> dict[str, Any]:
-        response = sync_client.invoke_model(**kwargs)
-        stream = response["body"]
-        body = MagicMock()
-        body.read = AsyncMock(return_value=stream.__enter__().read())
-        stream.__aenter__ = AsyncMock(return_value=body)
-        stream.__aexit__ = AsyncMock(return_value=False)
-        return response
-
-    client = MagicMock()
-    client.invoke_model = AsyncMock(side_effect=invoke)
-    manager = MagicMock()
-    manager.__aenter__ = AsyncMock(return_value=client)
-    manager.__aexit__ = AsyncMock(return_value=False)
-    session = MagicMock()
-    session.create_client.return_value = manager
-    monkeypatch.setattr("embeddings.bedrock.get_session", lambda: session)
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +261,6 @@ def test_bedrock_embed_deduplicates_and_normalizes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mock_client = MagicMock()
-    _mock_async_bedrock(monkeypatch, mock_client)
 
     def invoke_side_effect(**kwargs: Any) -> dict[str, Any]:
         body = json.loads(kwargs["body"])
@@ -514,7 +492,6 @@ def test_embed_reports_every_unique_passage_and_demotes_response_logs(
     from runtime.progress import StageAdvanced, StageFinished, StageStarted
 
     mock_client = MagicMock()
-    _mock_async_bedrock(monkeypatch, mock_client)
 
     def invoke_side_effect(**kwargs: Any) -> dict[str, Any]:
         body = json.loads(kwargs["body"])
@@ -698,27 +675,67 @@ def test_openai_async_embedding_requires_an_active_session() -> None:
         asyncio.run(embedder._embed_one_async("hello"))
 
 
-def test_bedrock_async_uses_native_client_on_the_event_loop(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mock_client = MagicMock()
-    _mock_async_bedrock(monkeypatch, mock_client)
+def test_bedrock_reuses_client_and_executor_across_event_loops(monkeypatch) -> None:
+    session = MagicMock()
+    session.region_name = "us-east-1"
+    client = session.client.return_value
     threads: set[int] = set()
 
     def invoke(**kwargs: Any) -> dict[str, Any]:
         threads.add(threading.get_ident())
-        return {"body": _bedrock_body([3.0, 4.0] + [0.0] * 254)}
+        text = json.loads(kwargs["body"])["inputText"]
+        assert "/etc/ssh/ssh_config" not in kwargs["body"]
+        vector = [3.0, 4.0] if text.startswith("a") else [5.0, 12.0]
+        return {"body": _bedrock_body(vector + [0.0] * 254, tokens=7),
+                "ResponseMetadata": {"RetryAttempts": 1}}
 
-    mock_client.invoke_model.side_effect = invoke
-    mock_session = MagicMock()
-    mock_session.region_name = "us-east-1"
-    mock_session.client.return_value = mock_client
-    monkeypatch.setattr("embeddings.bedrock.boto3.Session", lambda **_kw: mock_session)
-    embedder = BedrockEmbedding(
-        settings=_make_settings(
-            provider="Bedrock", model="amazon.titan-embed-text-v2:0", dimensions=256
-        )
-    )
-    vectors = asyncio.run(embedder.embed_async(["a", "b"]))
-    assert vectors.shape == (2, 256)
-    assert threads == {threading.get_ident()}
+    client.invoke_model.side_effect = invoke
+    monkeypatch.setattr("embeddings.bedrock.boto3.Session", lambda **kw: session)
+    embedder = BedrockEmbedding(settings=_make_settings(
+        provider="Bedrock", model="amazon.titan-embed-text-v2:0", dimensions=256, worker=1,
+    ))
+    try:
+        vectors = embedder.embed(["a /etc/ssh/ssh_config", "b", "a /etc/ssh/ssh_config"])
+        executor = embedder._executor
+        np.testing.assert_allclose(vectors[:, :2], [[0.6, 0.8], [5/13, 12/13], [0.6, 0.8]])
+        assert embedder.usage.snapshot() == (14, 2, 0)
+        assert asyncio.run(embedder.embed_async(["b"])).shape == (1, 256)
+        assert embedder._executor is executor
+        session.client.assert_called_once()
+        assert len(threads) == 1 and threading.get_ident() not in threads
+        client.close.assert_not_called()
+    finally:
+        embedder.close()
+    client.close.assert_called_once()
+    embedder.close()
+    client.close.assert_called_once()
+    # Ingest releases resources before a returned index is reused for serving.
+    assert embedder.embed(["a"]).shape == (1, 256)
+    assert session.client.call_count == 2
+    embedder.close()
+
+
+@pytest.mark.parametrize("text", [
+    "/etc/ssh/ssh_config", "https://example.test/a/b?x=1", r"a\/b", '"quoted"/path',
+    "Україна/日本語/😀", "line\n/tab\t/\x00", "no separators",
+])
+def test_bedrock_request_encoding_preserves_input(text) -> None:
+    body = BedrockEmbedding._request_body(text, 256)
+    assert json.loads(body) == {"inputText": text, "dimensions": 256, "normalize": True}
+    assert "/" not in body.replace(r"\/", "")
+
+
+@pytest.fixture(autouse=True)
+def close_bedrock_instances(monkeypatch):
+    """Each test owns and releases any persistent provider resources it creates."""
+    original = BedrockEmbedding.__init__
+    instances = []
+
+    def initialize(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        instances.append(self)
+
+    monkeypatch.setattr(BedrockEmbedding, "__init__", initialize)
+    yield
+    for embedder in instances:
+        embedder.close()

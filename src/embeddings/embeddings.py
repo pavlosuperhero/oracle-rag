@@ -87,6 +87,10 @@ class BaseEmbedding(ABC):
     checkpoint: EmbeddingCheckpoint | None = None
     checkpoint_endpoint: str = ""
 
+    def close(self) -> None:
+        """Release provider resources after pending work has settled."""
+        return None
+
     @property
     def checkpoint_identity(self) -> EmbeddingIdentity:
         return EmbeddingIdentity(

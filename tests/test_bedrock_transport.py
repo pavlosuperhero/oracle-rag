@@ -1,16 +1,16 @@
-"""Exercise real aiobotocore signing, retries and response parsing without AWS."""
+"""Exercise real boto3 signing, retries and response parsing without AWS."""
 
 import asyncio
 import json
 import logging
 import socket
 from dataclasses import dataclass, field
+from threading import Event, Lock
 from typing import Any
 
 import numpy as np
 import pytest
-from aiobotocore.awsrequest import AioAWSResponse
-from aiobotocore.config import AioConfig
+from botocore.awsrequest import AWSResponse
 from botocore.exceptions import (
     ConnectionClosedError,
     EndpointConnectionError,
@@ -36,94 +36,95 @@ class TransportState:
     closed: bool = False
     block_reads: bool = False
     read_error: bool = False
-    reading: asyncio.Event = field(default_factory=asyncio.Event)
-    release: asyncio.Event = field(default_factory=asyncio.Event)
+    reading: Event = field(default_factory=Event)
+    release: Event = field(default_factory=Event)
+    lock: Any = field(default_factory=Lock)
 
 
 @pytest.fixture
-def native_bedrock(monkeypatch: pytest.MonkeyPatch) -> tuple[BedrockEmbedding, TransportState]:
+def native_bedrock(monkeypatch):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.delenv("AWS_PROFILE", raising=False)
     state = TransportState()
 
     class RawResponse:
-        def __init__(self, payload: bytes, url: str) -> None:
+        def __init__(self, payload: bytes) -> None:
             self.payload = payload
-            self.url = url
-            self.content = self
             self.closed = False
             state.streams.append(self)
 
-        async def read(self, amount: int = -1) -> bytes:
+        def read(self, amt: int = -1) -> bytes:
+            with state.lock:
+                state.active += 1
+                state.peak = max(state.peak, state.active)
             state.reading.set()
-            if state.block_reads:
-                await state.release.wait()
-            if state.read_error:
-                raise ResponseStreamingError(error="connection closed during body read")
-            payload, self.payload = self.payload, b""
-            return payload
+            try:
+                if state.block_reads:
+                    assert state.release.wait(5), "test did not release response reads"
+                if state.read_error:
+                    raise ResponseStreamingError(error="connection closed during body read")
+                payload, self.payload = self.payload, b""
+                return payload
+            finally:
+                with state.lock:
+                    state.active -= 1
+
+        def stream(self, **kwargs):
+            yield self.read()
 
         def close(self) -> None:
             self.closed = True
 
-    class FakeHttpSession:
-        def __init__(self, **kwargs: Any) -> None:
-            assert kwargs["max_pool_connections"] == 2
-
-        async def __aenter__(self) -> Any:
-            return self
-
-        async def __aexit__(self, *args: Any) -> None:
-            await self.close()
-
-        async def close(self) -> None:
-            state.closed = True
-
-        async def send(self, request: Any) -> AioAWSResponse:
-            # These requests have passed through the real SDK, including SigV4 signing.
-            assert "Authorization" in request.headers
-            text = json.loads(request.body)["inputText"]
+    def send(self, request):
+        # Requests pass through real SigV4 signing and SDK retry handlers.
+        assert "Authorization" in request.headers
+        text = json.loads(request.body)["inputText"]
+        with state.lock:
             state.attempts[text] = state.attempts.get(text, 0) + 1
-            state.active += 1
-            state.peak = max(state.peak, state.active)
-            try:
-                await asyncio.sleep(0)
-                if (
-                    state.attempts[text] <= state.failures
-                    and (state.failure_text is None or state.failure_text == text)
-                ):
-                    raise ConnectionClosedError(endpoint_url=request.url)
-                payload = json.dumps(
-                    {"embedding": [float(ord(text[0])), 1.0] + [0.0] * 254,
-                     "inputTextTokenCount": 7}
-                    if state.status == 200
-                    else {"message": "test rejection"}
-                ).encode()
-                return AioAWSResponse(
-                    request.url, state.status,
-                    {"content-length": str(len(payload)), "content-type": "application/json",
-                     "x-amzn-errortype": state.code},
-                    RawResponse(payload, request.url),
-                )
-            finally:
-                state.active -= 1
+            attempt = state.attempts[text]
+        if attempt <= state.failures and (
+            state.failure_text is None or state.failure_text == text
+        ):
+            raise ConnectionClosedError(endpoint_url=request.url)
+        payload = json.dumps(
+            {"embedding": [float(ord(text[0])), 1.0] + [0.0] * 254,
+             "inputTextTokenCount": 7}
+            if state.status == 200 else {"message": "test rejection"}
+        ).encode()
+        return AWSResponse(
+            request.url, state.status,
+            {"content-length": str(len(payload)), "content-type": "application/json",
+             "x-amzn-errortype": state.code}, RawResponse(payload),
+        )
 
+    monkeypatch.setattr("botocore.httpsession.URLLib3Session.send", send)
+    monkeypatch.setattr(
+        "botocore.httpsession.URLLib3Session.close", lambda self: setattr(state, "closed", True)
+    )
     embedder = BedrockEmbedding(settings=_make_settings(
         provider="Bedrock", model="amazon.titan-embed-text-v2:0", dimensions=256,
     ))
-    embedder._sdk_config = AioConfig(http_session_cls=FakeHttpSession).merge(embedder._sdk_config)
-    return embedder, state
+    yield embedder, state
+    state.release.set()
+    embedder.close()
 
 
-def test_native_transport_overlaps_preserves_mapping_and_allows_heartbeat(native_bedrock) -> None:
+async def wait_for_reads(state, count=1):
+    async def wait():
+        while state.peak < count:
+            await asyncio.sleep(0.001)
+    await asyncio.wait_for(wait(), 5)
+
+
+def test_threaded_transport_overlaps_preserves_mapping_and_allows_heartbeat(native_bedrock) -> None:
     embedder, state = native_bedrock
     progress = RecordingProgress()
 
     async def run() -> Any:
         state.block_reads = True
         task = asyncio.create_task(embedder.embed_async(["a", "b", "a"], progress=progress))
-        await asyncio.wait_for(state.reading.wait(), 5)
+        await wait_for_reads(state, 2)
         # The caller can run while native response reads remain pending.
         assert not task.done()
         await asyncio.sleep(0)
@@ -136,17 +137,17 @@ def test_native_transport_overlaps_preserves_mapping_and_allows_heartbeat(native
     np.testing.assert_array_equal(vectors[0], vectors[2])
     assert vectors[0, 0] / vectors[0, 1] == pytest.approx(ord("a"))
     assert vectors[1, 0] / vectors[1, 1] == pytest.approx(ord("b"))
-    assert state.closed and all(stream.closed for stream in state.streams)
+    assert all(stream.closed for stream in state.streams)
     assert [e.completed for e in progress.events if isinstance(e, StageAdvanced)] == [1, 2]
 
 
-def test_native_sdk_recovers_connection_closure_within_one_budget(native_bedrock) -> None:
+def test_boto3_sdk_recovers_connection_closure_within_one_budget(native_bedrock) -> None:
     embedder, state = native_bedrock
     state.failures = 1
     assert embedder.embed(["a"]).shape == (1, 256)
     assert state.attempts == {"a": 2}
     assert embedder.usage.snapshot() == (7, 1, 0)
-    assert state.closed
+    assert not state.closed  # retained until owner cleanup
 
 
 def test_exhausted_connection_updates_terminal_progress_and_cause(native_bedrock, caplog) -> None:
@@ -162,7 +163,7 @@ def test_exhausted_connection_updates_terminal_progress_and_cause(native_bedrock
     assert (final.completed, final.errors, final.retries, final.retries_unknown) == (0, 1, 2, 0)
     assert not any(isinstance(e, StageFinished) for e in progress.events)
     assert "Embedding stopped: passages=0/1" in caplog.text
-    assert state.closed
+    assert not state.closed  # retained until owner cleanup
 
 
 @pytest.mark.parametrize("status,code,advice", [
@@ -183,23 +184,26 @@ def test_service_failures_have_specific_advice_and_sdk_retry_totals(
     assert state.attempts == {"a": attempts}
     final = [e for e in progress.events if isinstance(e, StageAdvanced)][-1]
     assert (final.errors, final.retries, final.retries_unknown) == (1, attempts - 1, 0)
-    assert state.closed
+    assert not state.closed  # retained until owner cleanup
 
 
-def test_cancellation_closes_pending_native_reads_and_client(native_bedrock) -> None:
+def test_cancellation_closes_pending_threaded_reads(native_bedrock) -> None:
     embedder, state = native_bedrock
     state.block_reads = True
     progress = RecordingProgress()
 
     async def run() -> None:
         task = asyncio.create_task(embedder.embed_async(["a", "b", "c"], progress=progress))
-        await asyncio.wait_for(state.reading.wait(), 5)
+        await wait_for_reads(state, 2)
         task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()  # wait for running SDK calls before reporting cancellation
+        state.release.set()
         with pytest.raises(asyncio.CancelledError):
             await task
 
     asyncio.run(run())
-    assert state.closed and all(stream.closed for stream in state.streams)
+    assert all(stream.closed for stream in state.streams)
     assert "c" not in state.attempts
     assert not any(isinstance(e, StageFinished) for e in progress.events)
 
@@ -210,7 +214,7 @@ def test_body_failure_closes_stream_and_retains_known_retry_count(native_bedrock
     progress = RecordingProgress()
     with pytest.raises(EmbeddingError, match="streaming-body read failures"):
         embedder.embed(["a"], progress=progress)
-    assert state.closed and all(stream.closed for stream in state.streams)
+    assert all(stream.closed for stream in state.streams)
     final = [e for e in progress.events if isinstance(e, StageAdvanced)][-1]
     assert (final.errors, final.retries, final.retries_unknown) == (1, 1, 0)
 
@@ -269,7 +273,7 @@ def test_diagnostics_retain_nested_dns_cause_and_actual_attempts(native_bedrock,
     assert "temporary DNS failure" in caplog.text
 
 
-def test_native_sdk_sustained_failure_and_checkpoint_resume(native_bedrock, tmp_path):
+def test_boto3_sdk_sustained_failure_and_checkpoint_resume(native_bedrock, tmp_path):
     from storages.checkpoint import SQLiteCheckpoint
 
     embedder, state = native_bedrock
@@ -280,7 +284,7 @@ def test_native_sdk_sustained_failure_and_checkpoint_resume(native_bedrock, tmp_
         embedder.checkpoint = cache
         with pytest.raises(EmbeddingError, match="Transport failure"):
             embedder.embed(texts)
-    assert state.closed
+    assert not state.closed  # retained until owner cleanup
     assert state.attempts["a1301"] == 3
     assert embedder.usage.snapshot()[1:] == (2, 1)
     with SQLiteCheckpoint(path, embedder.checkpoint_identity) as cache:
@@ -294,3 +298,52 @@ def test_native_sdk_sustained_failure_and_checkpoint_resume(native_bedrock, tmp_
     assert result.shape == (1400, 256)
     assert all(state.attempts[text] == before[text] for text in saved)
     assert embedder.usage.snapshot() == (7 * (1400 - len(saved)), 0, 0)
+
+
+def test_signed_request_preserves_path_and_unicode(native_bedrock):
+    embedder, state = native_bedrock
+    text = '/etc/ssh/ssh_config / "Україна" 😀'
+    assert embedder.embed([text]).shape == (1, 256)
+    assert state.attempts == {text: 1}
+    assert embedder.usage.snapshot() == (7, 0, 0)
+
+
+def test_server_shutdown_releases_pool_and_client(native_bedrock, settings, chunks):
+    from fastapi.testclient import TestClient
+
+    from data.index import MemoryIndex
+    from runtime.server import create_app
+
+    embedder, state = native_bedrock
+    index = MemoryIndex(embedder, settings)
+    index.build(chunks)
+    executor = embedder._executor
+    with TestClient(create_app(index)) as client:
+        assert client.get('/health').status_code == 200
+        assert not state.closed
+    assert state.closed
+    assert embedder._client is None and embedder._executor is None
+    with pytest.raises(RuntimeError, match='shutdown'):
+        executor.submit(lambda: None)
+    assert index.stats.chunks == 2
+
+
+def test_successful_ingest_releases_resources_and_can_serve_again(
+    native_bedrock, settings, monkeypatch, tmp_path,
+):
+    from typer.testing import CliRunner
+
+    import cli
+
+    embedder, state = native_bedrock
+    document = tmp_path / 'input.md'
+    document.write_text('A synthetic ingestion document.', encoding='utf-8')
+    monkeypatch.setattr(cli, 'create_embedder', lambda **kwargs: embedder)
+    result = CliRunner().invoke(
+        cli.app, ['--config', str(settings.path), 'ingest', str(document), '--no-progress'],
+    )
+    assert result.exit_code == 0, result.output
+    assert state.closed
+    assert embedder._client is None and embedder._executor is None
+    assert settings.index_path.is_file()
+    assert embedder.embed(['a']).shape == (1, 256)

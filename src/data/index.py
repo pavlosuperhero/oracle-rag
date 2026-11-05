@@ -12,7 +12,7 @@ from rank_bm25 import BM25L
 
 from configs.configs import Settings, load_config
 from documents.chunks import Chunk, DocumentError, load_chunks
-from embeddings.embeddings import Embedder, normalize
+from embeddings.embeddings import BaseEmbedding, Embedder, normalize
 from models.models import IndexStats, Passage, Query, SearchResult, SourceCatalog, SourceInfo
 from runtime.preparation import PreparationCache
 from runtime.progress import IngestProgress
@@ -42,6 +42,11 @@ class MemoryIndex:
         self._embedder = embedder
         self._snapshot: Snapshot | None = None
         self._write_lock = Lock()
+
+    def close(self) -> None:
+        """Release provider resources while keeping the loaded snapshot usable."""
+        if isinstance(self._embedder, BaseEmbedding):
+            self._embedder.close()
 
     @property
     def stats(self) -> IndexStats:
