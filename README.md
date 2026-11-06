@@ -227,6 +227,7 @@ background after ingestion:
 
 ```sh
 oracle serve
+oracle serve status
 oracle serve restart
 oracle serve stop
 ```
@@ -236,6 +237,13 @@ the saved index is ready. By default, service logs are written to
 `oracle-serve.log` beside the configured index; `--log-file` overrides this.
 Stop and restart use an authenticated local control endpoint for the service
 belonging to the selected configuration, host, and port.
+
+`oracle serve status` checks that same managed service without starting it or
+changing its state. It reports running, starting, or not running and exits with
+code 0 only when the authenticated control endpoint confirms readiness; all
+other states and control errors exit with code 1. Use `--host` and `--port`
+after `status` to select a different bind address. Foreground servers are not
+managed services and are not detected by this command.
 
 The bundled catalog includes [Database Design — 2nd Edition](https://opentextbc.ca/dbdesign01/)
 (`database-design`) for data modeling, relationships, keys and normalization,

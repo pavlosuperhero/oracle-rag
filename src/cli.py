@@ -54,7 +54,13 @@ from runtime.presentation import (
 from runtime.progress import IngestProgress, NullProgress, tracked_stage
 from runtime.runtime import run_saved_server, setup_logging
 from runtime.server import create_app, create_mcp, remote_fetch, remote_search, remote_sources
-from service.service import ServiceError, run_with_control, start_background, stop_background
+from service.service import (
+    ServiceError,
+    run_with_control,
+    start_background,
+    status_background,
+    stop_background,
+)
 from storages.checkpoint import SQLiteCheckpoint, checkpoint_path
 from storages.preparation import SQLitePreparationCache, preparation_path
 from storages.storage import StorageError
@@ -670,6 +676,26 @@ def serve_start(
 ) -> None:
     """Start the server; detached unless --debug or --foreground is specified."""
     _serve_command(ctx, index, region, profile, host, port, token, debug, foreground)
+
+
+@serve_app.command("status")
+def serve_status(
+    ctx: typer.Context,
+    host: Host = None,
+    port: Port = None,
+) -> None:
+    """Check the managed server; exit 0 only when it is running and ready."""
+    settings: Settings = ctx.obj
+    host = host or settings.server.host
+    port = port or settings.server.port
+    try:
+        status = status_background(settings, host, port)
+    except ServiceError as exc:
+        fail(exc)
+    message = "not running" if status == "stopped" else status
+    typer.echo(f"Oracle server is {message} at {host}:{port}.")
+    if status != "running":
+        raise typer.Exit(1)
 
 
 @serve_app.command("stop")

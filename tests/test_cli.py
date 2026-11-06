@@ -69,6 +69,44 @@ def test_serve_missing_index_fails_cleanly(
 
 
 @pytest.mark.parametrize(
+    "status, code, message",
+    [("running", 0, "running"), ("starting", 1, "starting"), ("stopped", 1, "not running")],
+)
+@pytest.mark.parametrize("options", [[], ["--host", "localhost", "--port", "9876"]])
+def test_serve_status(settings, monkeypatch, status, code, message, options):
+    check = Mock(return_value=status)
+    monkeypatch.setattr(cli, "status_background", check)
+    monkeypatch.setattr(cli, "create_embedder", Mock(side_effect=AssertionError("loaded embedder")))
+    monkeypatch.setattr(cli, "start_background", Mock(side_effect=AssertionError("started server")))
+    result = invoke(settings, "serve", "status", *options)
+    assert result.exit_code == code, result.output
+    host = "localhost" if options else settings.server.host
+    port = 9876 if options else settings.server.port
+    assert f"Oracle server is {message} at {host}:{port}." in result.output
+    assert check.call_args.args[0].path == settings.path
+    assert check.call_args.args[1:] == (host, port)
+
+
+def test_serve_status_reports_corrupt_state(settings):
+    from service.service import state_path
+
+    path = state_path(settings, settings.server.host, settings.server.port)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("invalid json")
+    result = invoke(settings, "serve", "status")
+    assert result.exit_code == 1
+    assert "Cannot read service state" in result.output
+    assert "Traceback" not in result.output
+    assert path.read_text() == "invalid json"
+
+
+def test_serve_status_without_managed_server(settings):
+    result = invoke(settings, "serve", "status")
+    assert result.exit_code == 1
+    assert "not running" in result.output
+
+
+@pytest.mark.parametrize(
     "host, token, allowed",
     [
         ("localhost", None, True),

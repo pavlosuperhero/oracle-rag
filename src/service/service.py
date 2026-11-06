@@ -1,3 +1,4 @@
+import ctypes
 import hashlib
 import json
 import logging
@@ -10,7 +11,7 @@ import time
 from collections.abc import Mapping, Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, Literal
 
 import httpx
 import uvicorn
@@ -58,6 +59,8 @@ def remove_state(path: Path, token: str) -> None:
 def process_alive(pid: int | None) -> bool:
     if pid is None or pid <= 0:
         return False
+    if os.name == "nt":
+        return _windows_process_alive(pid)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -65,6 +68,39 @@ def process_alive(pid: int | None) -> bool:
     except PermissionError:
         return True
     return True
+
+
+def _windows_process_alive(pid: int) -> bool:
+    """Poll a process handle without sending Windows console control events."""
+    # ctypes exposes these dynamic APIs only on Windows.
+    windows_ctypes: Any = ctypes
+    kernel32 = windows_ctypes.WinDLL("kernel32", use_last_error=True)
+    get_last_error = windows_ctypes.get_last_error
+    kernel32.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+    kernel32.OpenProcess.restype = ctypes.c_void_p
+    kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    kernel32.WaitForSingleObject.restype = ctypes.c_ulong
+    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel32.CloseHandle.restype = ctypes.c_int
+    handle = kernel32.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
+    if not handle:
+        error = get_last_error()
+        if error == 87:  # ERROR_INVALID_PARAMETER: no such process
+            return False
+        if error == 5:  # ERROR_ACCESS_DENIED: conservatively treat as alive
+            return True
+        raise ServiceError(f"Cannot inspect managed Oracle process {pid}: Windows error {error}.")
+    try:
+        result = kernel32.WaitForSingleObject(handle, 0)
+        if result == 258:  # WAIT_TIMEOUT: process has not exited
+            return True
+        if result == 0:  # WAIT_OBJECT_0: process has exited
+            return False
+        raise ServiceError(
+            f"Cannot inspect managed Oracle process {pid}: Windows error {get_last_error()}."
+        )
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 def control(state: ServiceState, *, stop: bool = False) -> bool:
@@ -79,9 +115,15 @@ def control(state: ServiceState, *, stop: bool = False) -> bool:
             )
             response.raise_for_status()
             payload = response.json()
-            if payload.get("pid") != state.pid:
+            if (
+                not isinstance(payload, dict)
+                or type(payload.get("pid")) is not int
+                or type(payload.get("started")) is not bool
+            ):
+                raise ServiceError("Invalid response from managed Oracle server.")
+            if state.pid is None or payload["pid"] != state.pid:
                 raise ServiceError("Service identity does not match; refusing control request.")
-            return bool(payload.get("started"))
+            return bool(payload["started"])
     except (httpx.HTTPError, ValueError) as exc:
         raise ServiceError(f"Cannot contact managed Oracle server: {exc}") from exc
 
@@ -150,6 +192,21 @@ def discard_stale(path: Path, state: ServiceState) -> bool:
         return False
     remove_state(path, state.token)
     return True
+
+
+def status_background(
+    settings: Settings, host: str, port: int
+) -> Literal["running", "starting", "stopped"]:
+    """Inspect the selected managed service without changing its state."""
+    state = read_state(state_path(settings, host, port))
+    if state is None:
+        return "stopped"
+    pid = state.pid if state.pid is not None else state.launcher_pid
+    if not process_alive(pid):
+        return "stopped"
+    if state.control_port is None:
+        return "starting"
+    return "running" if control(state) else "starting"
 
 
 def _windows_spawn_options() -> tuple[int, int, Any]:
