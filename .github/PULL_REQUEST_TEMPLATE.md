@@ -40,6 +40,13 @@ verification commands; choose checks relevant to this patch. Report skipped or
 failing checks and limitations. For a docs-only patch, checking links and examples
 may be enough. Do not assume later review replaces your own testing. -->
 
+## Oracle evidence and design review
+
+<!-- List the Oracle queries run (source, query, passage IDs). Then list diff
+deviations from the AGENTS.md design checklist as `file:line - principle - fixed or
+justified`. Write "None found" only after comparing the complete diff. Docs-only
+patches may write N/A with a reason. -->
+
 ## Compatibility and operational impact
 
 <!-- If applicable, explain changes to CLI/HTTP/MCP behavior, configuration, saved

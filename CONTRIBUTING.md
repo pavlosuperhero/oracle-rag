@@ -33,6 +33,19 @@ Keep discussion technical and respectful. Critique the patch with concrete
 evidence; explain disagreements and address review feedback. Approval is based
 on correctness, maintainability, scope, and the project's direction.
 
+## Design checklist
+
+Before requesting review, compare your diff with this checklist and report the
+result in the pull request:
+
+- A small `Protocol` port sits at each boundary, and tests inject a fake.
+- Tests use public names; they do not import or patch `_private` names from `src/`.
+- Each function has one purpose.
+- Timeouts, retries and sizes are named constants.
+- Function names and docstrings state their side effects.
+
+`tests/test_conventions.py` enforces the private-name rule.
+
 ## Licensing and provenance
 
 Contributions to project-owned code and documentation are accepted under
