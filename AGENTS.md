@@ -31,4 +31,5 @@ uv run mypy
 ```
 
 - Keep commits focused and sign off every commit with `git commit -s` (DCO `Signed-off-by` trailer).
+- Use purpose-based branch prefixes such as `fix/`, `feature/`, `docs/`, `refactor/`, `test/`, or `chore/`, followed by a short descriptive name. Never use agent, assistant, or tool names as branch prefixes (for example, `codex/`, `claude/`, or `copilot/`).
 - Fill out all sections of `.github/PULL_REQUEST_TEMPLATE.md` proportionally with concrete commands and observed output.
