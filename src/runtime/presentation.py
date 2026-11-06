@@ -41,6 +41,7 @@ from runtime.progress import (
     StageStarted,
     TotalsRecorder,
 )
+from runtime.service_status import ServiceStatus
 
 LABELS: dict[Stage, tuple[str, str]] = {
     "discover": ("Discover", "files"),
@@ -57,6 +58,37 @@ def format_duration(seconds: float) -> str:
         return f"{seconds:.1f}s"
     minutes, rest = divmod(int(seconds), 60)
     return f"{minutes:02d}:{rest:02d}"
+
+
+def format_service_status(status: ServiceStatus, host: str, port: int) -> str:
+    """Describe managed startup readiness without claiming retrieval health."""
+    message = "not running" if status.state == "stopped" else status.state
+    readiness = {
+        "running": "startup complete",
+        "starting": "startup incomplete",
+        "stopping": "shutting down",
+        "stopped": "not running",
+    }[status.state]
+    if status.uptime_seconds is None:
+        uptime = "unavailable"
+    else:
+        days, remainder = divmod(int(status.uptime_seconds), 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        uptime = f"{days}d {hours:02d}h {minutes:02d}m {seconds:02d}s"
+    return "\n".join((
+        f"Oracle server is {message} at {host}:{port}.",
+        f"  PID: {status.pid if status.pid is not None else 'unavailable'}",
+        f"  Uptime: {uptime}",
+        f"  Readiness: {readiness}",
+        f"  Index: {status.index_location or 'unavailable'}",
+        f"  Documents: {status.documents if status.documents is not None else 'unavailable'}",
+        f"  Chunks: {status.chunks if status.chunks is not None else 'unavailable'}",
+        f"  Embedding model: {status.model or 'unavailable'}",
+        f"  Dimensions: {status.dimensions if status.dimensions is not None else 'unavailable'}",
+        f"  Logs: {status.log_path or 'unavailable'}",
+        "  Retrieval: not checked",
+    ))
 
 
 def stage_prefix(stage: Stage) -> str:

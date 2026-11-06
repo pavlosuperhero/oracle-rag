@@ -239,11 +239,22 @@ Stop and restart use an authenticated local control endpoint for the service
 belonging to the selected configuration, host, and port.
 
 `oracle serve status` checks that same managed service without starting it or
-changing its state. It reports running, starting, or not running and exits with
+changing its state. It reports running, starting, stopping, or not running and exits with
 code 0 only when the authenticated control endpoint confirms readiness; all
 other states and control errors exit with code 1. Use `--host` and `--port`
 after `status` to select a different bind address. Foreground servers are not
 managed services and are not detected by this command.
+
+Status also shows the server PID, uptime, startup readiness, loaded index location,
+document/chunk counts, embedding model/dimensions, and actual service log path.
+Uptime is measured by the server from control-endpoint initialization, after the
+index is loaded. Index statistics describe the in-memory index, not files currently
+on disk. The command does not issue retrieval or embedding requests; its output
+explicitly says `Retrieval: not checked`.
+
+Servers started before diagnostic reporting was added still support status checks;
+fields they do not report appear as `unavailable`. Restart the managed server after
+upgrading to populate the new fields. Status itself never restarts the server.
 
 The bundled catalog includes [Database Design — 2nd Edition](https://opentextbc.ca/dbdesign01/)
 (`database-design`) for data modeling, relationships, keys and normalization,

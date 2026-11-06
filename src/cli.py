@@ -49,6 +49,7 @@ from runtime.presentation import (
     RichIngestProgress,
     format_duration,
     format_evidence,
+    format_service_status,
     wants_live_panel,
 )
 from runtime.progress import IngestProgress, NullProgress, tracked_stage
@@ -228,6 +229,7 @@ def run_server(
     token: str | None,
     service_state: Path | None = None,
     service_token: str | None = None,
+    index_location: Path | None = None,
 ) -> None:
     """Run the server in this process, optionally with managed shutdown support."""
     stats = index.stats
@@ -247,7 +249,10 @@ def run_server(
         )
     )
     if service_state is not None and service_token is not None:
-        run_with_control(server, service_state, service_token)
+        run_with_control(
+            server, service_state, service_token, index_stats=stats,
+            index_location=index_location,
+        )
     else:
         server.run()
 
@@ -583,7 +588,10 @@ def _serve_command(
         except (EmbeddingError, StorageError, OSError, ValueError) as exc:
             fail(exc)
         try:
-            run_server(loaded, host, port, token, Path(service_state), service_token)
+            run_server(
+                loaded, host, port, token, Path(service_state), service_token,
+                index_location=index or settings.index_path.parent,
+            )
         except ServiceError as exc:
             fail(exc)
         return
@@ -692,9 +700,8 @@ def serve_status(
         status = status_background(settings, host, port)
     except ServiceError as exc:
         fail(exc)
-    message = "not running" if status == "stopped" else status
-    typer.echo(f"Oracle server is {message} at {host}:{port}.")
-    if status != "running":
+    typer.echo(format_service_status(status, host, port))
+    if status.state != "running":
         raise typer.Exit(1)
 
 

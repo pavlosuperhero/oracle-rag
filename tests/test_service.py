@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -6,6 +7,7 @@ from unittest.mock import Mock
 import httpx
 import pytest
 
+from models.models import IndexStats
 from service.service import (
     ServiceError,
     ServiceState,
@@ -15,6 +17,7 @@ from service.service import (
     process_alive,
     read_state,
     remove_state,
+    run_with_control,
     start_background,
     state_path,
     status_background,
@@ -83,7 +86,7 @@ def test_corrupted_state_returns_actionable_error(settings):
 
 
 def test_status_absent_service_does_not_create_state(settings):
-    assert status_background(settings, "127.0.0.1", 8742) == "stopped"
+    assert status_background(settings, "127.0.0.1", 8742).state == "stopped"
     assert not state_path(settings, "127.0.0.1", 8742).exists()
 
 
@@ -92,15 +95,20 @@ def test_status_dead_process_preserves_stale_state(settings, monkeypatch, pid):
     path = save_state(settings, pid=pid, control_port=1234)
     before = path.read_bytes()
     monkeypatch.setattr("service.service.process_alive", lambda pid: False)
-    monkeypatch.setattr("service.service.control", lambda state: pytest.fail("contacted dead PID"))
-    assert status_background(settings, "127.0.0.1", 8742) == "stopped"
+    monkeypatch.setattr(
+        "service.service.control_status", lambda state: pytest.fail("contacted dead PID")
+    )
+    assert status_background(settings, "127.0.0.1", 8742).state == "stopped"
     assert path.read_bytes() == before
 
 
 def test_status_launch_without_control_endpoint_is_starting(settings):
-    path = save_state(settings)
+    path = save_state(settings, log_path="/actual/startup.log")
     before = path.read_bytes()
-    assert status_background(settings, "127.0.0.1", 8742) == "starting"
+    result = status_background(settings, "127.0.0.1", 8742)
+    assert result.state == "starting"
+    assert result.pid is None  # The launcher PID is not the server PID.
+    assert result.log_path == "/actual/startup.log"
     assert path.read_bytes() == before
 
 
@@ -117,8 +125,103 @@ def test_status_verifies_authenticated_readiness(settings, monkeypatch, started,
 
     client = httpx.Client(transport=httpx.MockTransport(respond))
     monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
-    assert status_background(settings, "127.0.0.1", 8742) == expected
+    result = status_background(settings, "127.0.0.1", 8742)
+    assert result.state == expected
+    assert result.pid == os.getpid()
+    assert result.uptime_seconds is None  # Older servers do not report diagnostics.
+    assert result.documents is None
+    assert result.index_location is None
     assert path.read_bytes() == before
+
+
+def test_status_reports_live_diagnostics_without_changing_state(settings, monkeypatch):
+    path = save_state(settings, pid=os.getpid(), control_port=1234, log_path="launch.log")
+    before = path.read_bytes()
+    payload = {
+        "pid": os.getpid(), "started": True, "uptime_seconds": 90061.5,
+        "documents": 12, "chunks": 345, "dimensions": 256, "model": "loaded-model",
+        "index_location": "/loaded/explicit.npz", "log_path": "/actual/override.log",
+    }
+    client = httpx.Client(transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, json=payload)
+    ))
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    result = status_background(settings, "127.0.0.1", 8742)
+    assert result.uptime_seconds == 90061.5
+    assert (result.documents, result.chunks, result.dimensions) == (12, 345, 256)
+    assert result.model == "loaded-model"
+    assert result.index_location == "/loaded/explicit.npz"
+    assert result.log_path == "/actual/override.log"
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "extra", [{"uptime_seconds": -1}, {"uptime_seconds": float("nan")},
+              {"documents": -1}, {"chunks": "123"}, {"dimensions": 0}]
+)
+def test_status_rejects_invalid_diagnostics(settings, monkeypatch, extra):
+    save_state(settings, pid=os.getpid(), control_port=1234)
+    payload = {"pid": os.getpid(), "started": True, **extra}
+    client = httpx.Client(transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, content=json.dumps(payload))
+    ))
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    with pytest.raises(ServiceError, match="Invalid response"):
+        status_background(settings, "127.0.0.1", 8742)
+
+
+@pytest.mark.parametrize("started, exiting", [(True, False), (False, False), (True, True)])
+def test_real_control_endpoint_reports_diagnostics_and_requires_auth(
+    settings, started, exiting
+):
+    path = save_state(settings, log_path="/actual/server.log")
+    index_location = settings.index_path.parent / "explicit.npz"
+    stats = IndexStats(documents=2, chunks=10, dimensions=256, model="test-model", sources=[])
+
+    class Server:
+        should_exit = exiting
+
+        def __init__(self):
+            self.started = started
+
+        def run(self):
+            before = path.read_bytes()
+            result = status_background(settings, "127.0.0.1", 8742)
+            expected = "stopping" if exiting else "running" if started else "starting"
+            assert result.state == expected
+            assert result.pid == os.getpid()
+            assert result.uptime_seconds >= 0
+            assert (result.documents, result.chunks, result.dimensions) == (2, 10, 256)
+            assert result.model == "test-model"
+            assert result.index_location == str(index_location)
+            assert result.log_path == "/actual/server.log"
+            current = read_state(path)
+            with httpx.Client(trust_env=False) as client:
+                response = client.get(f"http://127.0.0.1:{current.control_port}/status")
+            assert response.status_code == 401
+            assert "test-model" not in response.text
+            assert path.read_bytes() == before
+
+    run_with_control(
+        Server(), path, "test-secret", index_stats=stats, index_location=index_location,
+    )
+    assert not path.exists()
+
+
+def test_launcher_records_actual_log_override(settings, tmp_path, monkeypatch):
+    log_path = tmp_path / "custom.log"
+
+    def spawn(command, environment, logs):
+        state = read_state(state_path(settings, "127.0.0.1", 8742))
+        assert state.log_path == str(log_path.resolve())
+        assert logs.name == str(log_path)
+        return _ExitedProcess()
+
+    monkeypatch.setattr("service.service._spawn_detached", spawn)
+    with pytest.raises(ServiceError, match="exited with code 7"):
+        start_background(
+            ["python", "-m", "cli"], {}, settings, "127.0.0.1", 8742, log_path,
+        )
 
 
 @pytest.mark.parametrize(

@@ -10,6 +10,7 @@ import cli
 from configs.configs import Settings
 from data.index import MemoryIndex
 from embeddings import create_embedder
+from runtime.service_status import ServiceStatus
 
 runner = CliRunner()
 
@@ -70,11 +71,12 @@ def test_serve_missing_index_fails_cleanly(
 
 @pytest.mark.parametrize(
     "status, code, message",
-    [("running", 0, "running"), ("starting", 1, "starting"), ("stopped", 1, "not running")],
+    [("running", 0, "running"), ("starting", 1, "starting"),
+     ("stopping", 1, "stopping"), ("stopped", 1, "not running")],
 )
 @pytest.mark.parametrize("options", [[], ["--host", "localhost", "--port", "9876"]])
 def test_serve_status(settings, monkeypatch, status, code, message, options):
-    check = Mock(return_value=status)
+    check = Mock(return_value=ServiceStatus(status))
     monkeypatch.setattr(cli, "status_background", check)
     monkeypatch.setattr(cli, "create_embedder", Mock(side_effect=AssertionError("loaded embedder")))
     monkeypatch.setattr(cli, "start_background", Mock(side_effect=AssertionError("started server")))
@@ -104,6 +106,50 @@ def test_serve_status_without_managed_server(settings):
     result = invoke(settings, "serve", "status")
     assert result.exit_code == 1
     assert "not running" in result.output
+
+
+def test_serve_status_prints_diagnostics_as_plain_text(settings, monkeypatch):
+    result_status = ServiceStatus(
+        "running", pid=123, uptime_seconds=90061.9, documents=0, chunks=0,
+        dimensions=256, model="model-[blue]", index_location="/index/[current].npz",
+        log_path="/logs/[server].log",
+    )
+    monkeypatch.setattr(cli, "status_background", Mock(return_value=result_status))
+    result = invoke(settings, "serve", "status", env={"NO_COLOR": "1", "TERM": "dumb"})
+    assert result.exit_code == 0, result.output
+    for line in (
+        "PID: 123", "Uptime: 1d 01h 01m 01s", "Readiness: startup complete",
+        "Documents: 0", "Chunks: 0", "Dimensions: 256", "Embedding model: model-[blue]",
+        "Index: /index/[current].npz", "Logs: /logs/[server].log", "Retrieval: not checked",
+    ):
+        assert line in result.output
+    assert "\x1b[" not in result.output
+
+
+def test_serve_status_marks_old_server_details_unavailable(settings, monkeypatch):
+    monkeypatch.setattr(
+        cli, "status_background", Mock(return_value=ServiceStatus("running", pid=9))
+    )
+    result = invoke(settings, "serve", "status")
+    assert result.exit_code == 0
+    assert "PID: 9" in result.output
+    assert "Uptime: unavailable" in result.output
+    assert "Index: unavailable" in result.output
+    assert "Logs: unavailable" in result.output
+
+
+def test_managed_server_supplies_loaded_index_diagnostics(index, tmp_path, monkeypatch):
+    run = Mock()
+    monkeypatch.setattr(cli, "run_with_control", run)
+    monkeypatch.setattr(cli.uvicorn, "Server", Mock())
+    state_path = tmp_path / "state.json"
+    loaded_path = tmp_path / "selected.npz"
+    cli.run_server(
+        index, "127.0.0.1", 8742, None, state_path, "service-secret",
+        index_location=loaded_path,
+    )
+    assert run.call_args.kwargs["index_stats"] == index.stats
+    assert run.call_args.kwargs["index_location"] == loaded_path
 
 
 @pytest.mark.parametrize(
