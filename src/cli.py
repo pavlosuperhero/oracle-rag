@@ -56,12 +56,13 @@ from runtime.progress import IngestProgress, NullProgress, tracked_stage
 from runtime.runtime import run_saved_server, setup_logging
 from runtime.server import create_app, create_mcp, remote_fetch, remote_search, remote_sources
 from service.service import (
-    ServiceError,
     run_with_control,
     start_background,
     status_background,
     stop_background,
+    stopped_services,
 )
+from service.state import ServiceError
 from storages.checkpoint import SQLiteCheckpoint, checkpoint_path
 from storages.preparation import SQLitePreparationCache, preparation_path
 from storages.storage import StorageError
@@ -711,7 +712,7 @@ def serve_stop(
     host: Host = None,
     port: Port = None,
 ) -> None:
-    """Gracefully stop the detached server for the selected host and port."""
+    """Stop the selected detached server, escalating only through its owning supervisor."""
     settings: Settings = ctx.obj
     host = host or settings.server.host
     port = port or settings.server.port
@@ -915,12 +916,13 @@ def clean(
         ):
             typer.echo("Cancelled; no files deleted.")
             return
-        for path in targets:
-            path.unlink()
-            logger.info("Deleted managed file: %s", path)
-    except (DataError, OSError) as exc:
+        with stopped_services(settings):
+            for path in targets:
+                path.unlink()
+                logger.info("Deleted managed file: %s", path)
+    except (DataError, OSError, ServiceError) as exc:
         fail(exc)
-    typer.echo(f"Deleted {len(targets)} files. Restart the server to unload old data.")
+    typer.echo(f"Deleted {len(targets)} files. Managed servers using this directory are stopped.")
 
 
 @app.command()

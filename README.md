@@ -44,12 +44,23 @@ You can run it from any directory, without cloning the repository or using `uv r
 uv can download Python 3.14 if it is missing. See the
 [uv tool guide](https://docs.astral.sh/uv/guides/tools/) for environment management.
 
-To update from the tracked Git branch or uninstall:
+To update from the tracked Git branch:
 
 ```sh
 uv tool upgrade oracle-rag
+```
+
+Before uninstalling, stop each managed server while the CLI is still installed:
+
+```sh
+oracle serve stop
 uv tool uninstall oracle-rag
 ```
+
+Use the same `--config`, host and port used to start each server (for example,
+`oracle --config /path/config.yaml serve stop --host 127.0.0.1 --port 8742`).
+The same stop-first workflow applies to `pipx uninstall oracle-rag` and
+`pip uninstall oracle-rag`; package-manager removal does not stop a running server.
 
 ### Using pip in a virtual environment
 
@@ -238,6 +249,21 @@ the saved index is ready. By default, service logs are written to
 Stop and restart use an authenticated local control endpoint for the service
 belonging to the selected configuration, host, and port.
 
+New detached launches include a small supervisor that retains ownership of the
+server child. Stop first requests graceful shutdown and waits up to
+`development.shutdown_timout` seconds (the existing configuration key). If control
+fails or that wait expires, the authenticated supervisor terminates its own child,
+waits the same interval, then forces termination and waits once more. HTTP control
+adds bounded request time. On POSIX these steps use SIGTERM then SIGKILL; on Windows
+both use the child's retained process handle with TerminateProcess. No process
+groups or PIDs taken from state files are forcibly signalled. An unreachable or
+mismatched supervisor causes stop to fail with diagnostics.
+
+Servers launched by older versions still support graceful stop. Without an owning
+supervisor, an unresponsive older server cannot be forcibly stopped by this CLI.
+Stop older servers before upgrading, then start them with the upgraded version to
+enable the fallback. Foreground servers remain under their terminal's control.
+
 `oracle serve status` checks that same managed service without starting it or
 changing its state. It reports running, starting, stopping, or not running and exits with
 code 0 only when the authenticated control endpoint confirms readiness; all
@@ -293,7 +319,12 @@ stderr, keeping stdout as a list of downloaded paths. `oracle data remove my-boo
 the registration; cached files and the existing index remain until cleanup or
 re-ingestion. Ingestion without a path requires every registered download to
 be present. `oracle clean` confirms before deleting saved indexes;
-`oracle clean --all` also deletes managed files and the manifest.
+`oracle clean --all` also deletes managed files and the manifest. After confirmation,
+clean stops all managed servers registered in the database directory, including
+other configured endpoints, before deleting the first file. A shutdown or ownership
+verification failure aborts deletion. Declining confirmation or selecting no files
+stops nothing. Managed startup is excluded until cleanup finishes. Foreground
+servers must be stopped separately.
 
 ## Install the assistant skill
 

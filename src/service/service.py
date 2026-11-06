@@ -1,16 +1,15 @@
 import ctypes
-import hashlib
 import logging
 import os
 import secrets
 import subprocess
-import tempfile
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, Protocol
 
 import httpx
 import uvicorn
@@ -19,22 +18,31 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from configs.configs import Settings
 from models.models import IndexStats
 from runtime.service_status import ServiceStatus
+from service.state import (
+    ServiceError,
+    ServiceState,
+    lifecycle_lock,
+    read_state,
+    remove_state,
+    state_path,
+    write_state,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class ServiceError(RuntimeError):
-    pass
+OWNER_STATUS_TIMEOUT = 2.0  # seconds for a supervisor status poll
+STOP_POLL_INTERVAL = 0.1  # seconds between exit checks
+ESCALATION_MARGIN = 3.0  # extra seconds on top of two shutdown intervals
 
 
-class ServiceState(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+class OwnerPort(Protocol):
+    """Port to the supervisor that owns the child: poll (`stop=False`) or stop it.
 
-    token: str
-    launcher_pid: int
-    pid: int | None = None
-    control_port: int | None = None
-    log_path: str | None = None
+    Returns True once the owned child has exited.
+    """
+
+    def __call__(self, state: ServiceState, *, stop: bool, timeout: float) -> bool: ...
 
 
 class ControlStatus(BaseModel):
@@ -50,27 +58,6 @@ class ControlStatus(BaseModel):
     model: str | None = None
     index_location: str | None = None
     log_path: str | None = None
-
-
-def state_path(settings: Settings, host: str, port: int) -> Path:
-    identity = f"{settings.path}:{host}:{port}"
-    digest = hashlib.sha256(identity.encode()).hexdigest()[:20]
-    return settings.index_path.parent / f".oracle-service-{digest}.json"
-
-
-def read_state(path: Path) -> ServiceState | None:
-    try:
-        return ServiceState.model_validate_json(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
-    except (OSError, ValidationError) as exc:
-        raise ServiceError(f"Cannot read service state {path}: {exc}") from exc
-
-
-def remove_state(path: Path, token: str) -> None:
-    state = read_state(path)
-    if state is not None and secrets.compare_digest(state.token, token):
-        path.unlink(missing_ok=True)
 
 
 def process_alive(pid: int | None) -> bool:
@@ -121,6 +108,11 @@ def _windows_process_alive(pid: int) -> bool:
 
 
 def control(state: ServiceState, *, stop: bool = False) -> bool:
+    """Request status or stop; a stop is only sent after an identity-verifying status call."""
+    if stop:
+        # Validate identity before issuing a request with a side effect. A bad
+        # PID in local state must not stop a different authenticated instance.
+        control_status(state)
     result = control_status(state, stop=stop)
     return result.started and not result.stopping
 
@@ -205,26 +197,24 @@ def run_with_control(
     state.pid = os.getpid()
     state.control_port = endpoint.server_port
     thread = threading.Thread(target=endpoint.serve_forever, daemon=True)
-    temporary: Path | None = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", dir=service_state.parent, delete=False) as file:
-            temporary = Path(file.name)
-            file.write(state.model_dump_json())
-        os.replace(temporary, service_state)
+        write_state(service_state, state)
         thread.start()
         server.run()
     finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
         if thread.is_alive():
             endpoint.shutdown()
             thread.join(timeout=5)
         endpoint.server_close()
-        remove_state(service_state, service_token)
+        # The supervisor retains launch identity until it has reaped this worker.
+        if state.supervisor_port is None:
+            remove_state(service_state, service_token)
 
 
 def discard_stale(path: Path, state: ServiceState) -> bool:
     if process_alive(state.pid if state.pid is not None else state.launcher_pid):
+        return False
+    if process_alive(state.supervisor_pid):
         return False
     remove_state(path, state.token)
     return True
@@ -305,6 +295,14 @@ def start_background(
     port: int,
     log_path: Path,
 ) -> None:
+    with lifecycle_lock(settings.index_path.parent):
+        _start_background(command, environment, settings, host, port, log_path)
+
+
+def _start_background(
+    command: Sequence[str], environment: Mapping[str, str], settings: Settings,
+    host: str, port: int, log_path: Path,
+) -> None:
     path = state_path(settings, host, port)
     path.parent.mkdir(parents=True, exist_ok=True)
     state = read_state(path)
@@ -326,12 +324,18 @@ def start_background(
         child_environment.update(ORACLE_SERVICE_STATE=str(path), ORACLE_SERVICE_TOKEN=state.token)
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("ab") as logs:
-            process = _spawn_detached(command, child_environment, logs)
+            supervised_command = [
+                command[0], "-m", "service.supervisor",
+                str(settings.development.shutdown_timeout), *command,
+            ]
+            process = _spawn_detached(supervised_command, child_environment, logs)
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 raise ServiceError(f"Oracle exited with code {process.returncode}. See {log_path}")
             current = read_state(path)
+            if current is not None and current.token != state.token:
+                raise ServiceError("Service state changed during startup.")
             if current is not None and current.control_port is not None:
                 try:
                     if control(current):
@@ -345,30 +349,129 @@ def start_background(
         raise ServiceError(f"Oracle startup timed out. See {log_path}")
     except BaseException:
         if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=settings.development.shutdown_timeout)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            # Do not kill a supervisor and orphan its child. It has its own
+            # startup deadline; ask it to stop through its authenticated port.
+            current = read_state(path)
+            if current is not None and current.token == state.token:
+                _stop_state(settings, path, current)
         remove_state(path, state.token)
         raise
 
 
 def stop_background(settings: Settings, host: str, port: int) -> bool:
-    path = state_path(settings, host, port)
-    state = read_state(path)
-    if state is None or discard_stale(path, state):
-        return False
-    control(state, stop=True)
-    deadline = time.monotonic() + settings.development.shutdown_timeout + 5
-    while time.monotonic() < deadline:
-        current = read_state(path)
-        if current is None or current.token != state.token:
-            logger.info("Stopped managed Oracle at %s:%d", host, port)
-            return True
-        if not process_alive(state.pid):
+    with lifecycle_lock(settings.index_path.parent):
+        path = state_path(settings, host, port)
+        state = read_state(path)
+        return False if state is None else _stop_state(settings, path, state)
+
+
+def owner_status(state: ServiceState, *, stop: bool, timeout: float) -> bool:
+    """Ask the parent that owns Popen; never signal the PID recorded in state."""
+    if state.supervisor_port is None or state.supervisor_pid is None:
+        raise ServiceError("No verified supervisor identity; refusing process termination.")
+    try:
+        with httpx.Client(trust_env=False, timeout=timeout) as client:
+            response = client.request(
+                "POST" if stop else "GET",
+                f"http://127.0.0.1:{state.supervisor_port}/{'stop' if stop else 'status'}",
+                headers={
+                    "Authorization": f"Bearer {state.token}",
+                    "X-Oracle-Pid": str(state.pid),
+                    "X-Oracle-Supervisor": str(state.supervisor_pid),
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+        if (
+            not isinstance(payload, dict) or type(payload.get("pid")) is not int
+            or payload["pid"] <= 0 or (state.pid is not None and payload["pid"] != state.pid)
+            or type(payload.get("exited")) is not bool
+        ):
+            raise ServiceError("Supervisor child identity does not match; refusing termination.")
+        return bool(payload["exited"])
+    except (httpx.HTTPError, ValueError) as exc:
+        raise ServiceError(f"Cannot verify owned Oracle child: {exc}") from exc
+
+
+def _wait_for_exit(
+    settings: Settings, path: Path, state: ServiceState, *, graceful_failed: bool,
+    owner: OwnerPort | None = None,
+) -> bool:
+    """Poll until the server is gone; return False if it outlived the graceful window.
+
+    Disappearing or replaced state is never treated as evidence that the process exited.
+    """
+    owner = owner or owner_status
+    deadline = time.monotonic() + settings.development.shutdown_timeout
+    while True:
+        pid = state.pid if state.pid is not None else state.supervisor_pid or state.launcher_pid
+        if not process_alive(pid) and (
+            state.supervisor_port is None or not process_alive(state.supervisor_pid)
+        ):
             remove_state(path, state.token)
             return True
-        time.sleep(0.1)
-    raise ServiceError("Oracle shutdown timed out; the process was not forcibly killed.")
+        if state.supervisor_port is not None:
+            try:
+                if owner(state, stop=False, timeout=OWNER_STATUS_TIMEOUT):
+                    remove_state(path, state.token)
+                    return True
+            except ServiceError as exc:
+                logger.debug("Supervisor status unavailable: %s", exc)
+        if graceful_failed or time.monotonic() >= deadline:
+            return False
+        time.sleep(STOP_POLL_INTERVAL)
+
+
+def _escalate_stop(
+    settings: Settings, path: Path, state: ServiceState, graceful_error: ServiceError | None,
+    owner: OwnerPort | None = None,
+) -> None:
+    """Ask the owning supervisor to terminate its child; refuse without verified ownership."""
+    current = read_state(path)
+    if current is None or not secrets.compare_digest(current.token, state.token):
+        raise ServiceError("Service state changed before exit; refusing process termination.")
+    if state.supervisor_port is None:
+        if graceful_error is not None:
+            raise graceful_error
+        raise ServiceError(
+            "Oracle shutdown timed out; no verified supervisor for this older server. "
+            "Refusing to signal an unverified PID. Restart with this version before retrying."
+        )
+    timeout = 2 * settings.development.shutdown_timeout + ESCALATION_MARGIN
+    if not (owner or owner_status)(state, stop=True, timeout=timeout):
+        raise ServiceError("Oracle child has not exited; cleanup aborted.")
+    remove_state(path, state.token)
+
+
+def _stop_state(
+    settings: Settings, path: Path, state: ServiceState, owner: OwnerPort | None = None,
+) -> bool:
+    """Stop one managed server: graceful request, bounded wait, then supervisor escalation."""
+    if discard_stale(path, state):
+        return False
+    graceful_error: ServiceError | None = None
+    try:
+        control(state, stop=True)
+    except ServiceError as exc:
+        graceful_error = exc
+    if not _wait_for_exit(
+        settings, path, state, graceful_failed=graceful_error is not None, owner=owner,
+    ):
+        _escalate_stop(settings, path, state, graceful_error, owner)
+    return True
+
+
+@contextmanager
+def stopped_services(settings: Settings) -> Iterator[None]:
+    """Stop every managed server, then hold the lifecycle lock for the caller's body.
+
+    Entering has a side effect: all registered servers are stopped before the body runs.
+    """
+    with lifecycle_lock(settings.index_path.parent):
+        for path in sorted(settings.index_path.parent.glob(".oracle-service-*.json")):
+            if path.is_symlink():
+                raise ServiceError(f"Refusing symlink service state: {path}")
+            state = read_state(path)
+            if state is not None:
+                _stop_state(settings, path, state)
+        yield

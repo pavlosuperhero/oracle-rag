@@ -1,4 +1,5 @@
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -309,6 +310,49 @@ def test_clean_requires_confirmation(settings: Settings, index: MemoryIndex) -> 
     result = invoke(settings, "clean", input="y\n")
     assert result.exit_code == 0, result.output
     assert not settings.index_path.exists()
+
+
+@pytest.mark.parametrize("all_data", [False, True])
+def test_clean_stops_services_before_unlink(settings, index, monkeypatch, all_data):
+    index.save(settings.index_path)
+    stopped = []
+
+    @contextmanager
+    def stop(selected):
+        assert selected.index_path == settings.index_path
+        assert settings.index_path.is_file()
+        stopped.append(True)
+        yield
+        assert not settings.index_path.exists()
+
+    monkeypatch.setattr(cli, "stopped_services", stop)
+    result = invoke(settings, "clean", *(["--all"] if all_data else []), input="y\n")
+    assert result.exit_code == 0, result.output
+    assert stopped == [True]
+    assert "Restart the server" not in result.output
+
+
+@pytest.mark.parametrize("confirmation, create_index", [("n\n", True), ("y\n", False)])
+def test_clean_noop_never_stops_service(settings, index, monkeypatch, confirmation, create_index):
+    if create_index:
+        index.save(settings.index_path)
+    stop = Mock(side_effect=AssertionError("stopped service during noop"))
+    monkeypatch.setattr(cli, "stopped_services", stop)
+    result = invoke(settings, "clean", input=confirmation)
+    assert result.exit_code == 0, result.output
+    stop.assert_not_called()
+
+
+def test_clean_shutdown_failure_preserves_files(settings, index, monkeypatch):
+    index.save(settings.index_path)
+    before = settings.index_path.read_bytes()
+    monkeypatch.setattr(
+        cli, "stopped_services", Mock(side_effect=cli.ServiceError("identity uncertain"))
+    )
+    result = invoke(settings, "clean", input="y\n")
+    assert result.exit_code == 1, result.output
+    assert "identity uncertain" in result.output
+    assert settings.index_path.read_bytes() == before
 
 
 def test_provider_factory_dispatch(settings: Settings, monkeypatch) -> None:
