@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import httpx
@@ -9,19 +10,23 @@ import pytest
 
 from models.models import IndexStats
 from service.service import (
-    ServiceError,
-    ServiceState,
     _windows_process_alive,
     _windows_spawn_options,
     control,
     process_alive,
-    read_state,
-    remove_state,
     run_with_control,
     start_background,
-    state_path,
     status_background,
     stop_background,
+    stopped_services,
+)
+from service.state import (
+    ServiceError,
+    ServiceState,
+    lifecycle_lock,
+    read_state,
+    remove_state,
+    state_path,
 )
 
 
@@ -50,6 +55,138 @@ def test_stop_never_signals_unverified_live_pid(settings):
     with pytest.raises(ServiceError, match="still starting"):
         stop_background(settings, "127.0.0.1", 8742)
     assert path.is_file()
+
+
+def test_timeout_asks_owned_supervisor_and_waits_for_exit(settings, monkeypatch):
+    path = save_state(settings, pid=12345, control_port=1, supervisor_pid=123, supervisor_port=2)
+    monkeypatch.setattr("service.service.process_alive", lambda pid: True)
+    monkeypatch.setattr("service.service.control", Mock(side_effect=ServiceError("unreachable")))
+    owner = Mock(side_effect=[False, True])
+    monkeypatch.setattr("service.service.owner_status", owner)
+    assert stop_background(settings, "127.0.0.1", 8742)
+    assert [call.kwargs["stop"] for call in owner.call_args_list] == [False, True]
+    assert not path.exists()
+
+
+def test_graceful_timeout_escalates_through_supervisor(settings, monkeypatch):
+    path = save_state(settings, pid=12345, control_port=1, supervisor_pid=123, supervisor_port=2)
+    clock = iter([0, settings.development.shutdown_timeout])
+    monkeypatch.setattr("service.service.time.monotonic", lambda: next(clock))
+    monkeypatch.setattr("service.service.process_alive", lambda pid: True)
+    monkeypatch.setattr("service.service.control", Mock(return_value=True))
+    owner = Mock(side_effect=[False, True])
+    monkeypatch.setattr("service.service.owner_status", owner)
+    assert stop_background(settings, "127.0.0.1", 8742)
+    assert [call.kwargs["stop"] for call in owner.call_args_list] == [False, True]
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("replacement", [None, "replacement-token"])
+def test_lost_state_does_not_prove_exit_or_allow_escalation(settings, monkeypatch, replacement):
+    path = save_state(settings, pid=12345, control_port=1, supervisor_pid=123, supervisor_port=2)
+    monkeypatch.setattr("service.service.process_alive", lambda pid: True)
+
+    def control_failure(*args, **kwargs):
+        if replacement is None:
+            path.unlink()
+        else:
+            save_state(settings, pid=12346, token=replacement)
+        raise ServiceError("unreachable")
+
+    monkeypatch.setattr("service.service.control", control_failure)
+    owner = Mock(return_value=False)
+    monkeypatch.setattr("service.service.owner_status", owner)
+    with pytest.raises(ServiceError, match="state changed"):
+        stop_background(settings, "127.0.0.1", 8742)
+    assert all(not call.kwargs["stop"] for call in owner.call_args_list)
+    if replacement is not None:
+        assert read_state(path).token == replacement
+
+
+def test_old_process_exit_does_not_remove_replacement_state(settings, monkeypatch):
+    path = save_state(settings, pid=12345, control_port=1)
+    alive = iter([True, False])
+    monkeypatch.setattr("service.service.process_alive", lambda pid: next(alive))
+
+    def replace(*args, **kwargs):
+        save_state(settings, pid=12346, token="new-instance")
+        return True
+
+    monkeypatch.setattr("service.service.control", replace)
+    assert stop_background(settings, "127.0.0.1", 8742)
+    assert read_state(path).token == "new-instance"
+
+
+def test_cleanup_stops_all_registered_endpoints_under_one_lock(settings, monkeypatch):
+    first = save_state(settings, pid=111)
+    second = first.with_name(".oracle-service-another-endpoint.json")
+    second.write_text(ServiceState(token="other", launcher_pid=1, pid=222).model_dump_json())
+    stopped = []
+
+    def stop(selected, path, state):
+        stopped.append(state.pid)
+        return True
+
+    monkeypatch.setattr("service.service._stop_state", stop)
+    with stopped_services(settings):
+        assert sorted(stopped) == [111, 222]
+        with pytest.raises(ServiceError, match="lifecycle operation"):
+            with lifecycle_lock(settings.index_path.parent):
+                pytest.fail("managed launch could race cleanup")
+
+
+def test_cleanup_corrupt_state_prevents_deletion_body(settings):
+    path = save_state(settings)
+    path.write_text("invalid json")
+    with pytest.raises(ServiceError, match="Cannot read service state"):
+        with stopped_services(settings):
+            pytest.fail("cleanup permitted with unreadable service state")
+
+
+def test_shutdown_failure_keeps_state(settings, monkeypatch):
+    path = save_state(settings, pid=12345, control_port=1, supervisor_pid=123, supervisor_port=2)
+    monkeypatch.setattr("service.service.process_alive", lambda pid: True)
+    monkeypatch.setattr("service.service.control", Mock(side_effect=ServiceError("unreachable")))
+    monkeypatch.setattr("service.service.owner_status", Mock(return_value=False))
+    with pytest.raises(ServiceError, match="has not exited"):
+        stop_background(settings, "127.0.0.1", 8742)
+    assert path.exists()
+
+
+def test_control_checks_identity_before_requesting_stop(monkeypatch):
+    methods = []
+
+    def respond(request):
+        methods.append(request.method)
+        return httpx.Response(200, json={"pid": 99999, "started": True})
+
+    client = httpx.Client(transport=httpx.MockTransport(respond))
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    with pytest.raises(ServiceError, match="identity does not match"):
+        control(ServiceState(token="secret", launcher_pid=1, pid=123, control_port=2), stop=True)
+    assert methods == ["GET"]
+
+
+@pytest.mark.parametrize("denied", [False, True])
+def test_windows_lifecycle_uses_nonblocking_byte_lock(settings, monkeypatch, denied):
+    locking = Mock(side_effect=OSError("busy") if denied else None)
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(locking=locking, LK_NBLCK=2))
+    monkeypatch.setattr(sys, "platform", "win32")
+    if denied:
+        with pytest.raises(ServiceError, match="lifecycle operation"):
+            with lifecycle_lock(settings.index_path.parent):
+                pytest.fail("entered a busy lifecycle lock")
+    else:
+        with lifecycle_lock(settings.index_path.parent):
+            assert (settings.index_path.parent / ".oracle-lifecycle.lock").read_bytes() == b"\0"
+    assert locking.call_args.args[1:] == (2, 1)
+
+
+def test_lifecycle_lock_open_failure_has_actionable_error(settings, monkeypatch):
+    monkeypatch.setattr("service.service.os.open", Mock(side_effect=PermissionError("denied")))
+    with pytest.raises(ServiceError, match="Cannot open Oracle lifecycle lock"):
+        with lifecycle_lock(settings.index_path.parent):
+            pytest.fail("entered a lock without permission")
 
 
 def test_other_launch_cannot_remove_state(settings):
