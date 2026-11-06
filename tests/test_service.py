@@ -1,17 +1,26 @@
+import json
 import os
 import subprocess
 import sys
+from unittest.mock import Mock
 
+import httpx
 import pytest
 
+from models.models import IndexStats
 from service.service import (
     ServiceError,
     ServiceState,
+    _windows_process_alive,
     _windows_spawn_options,
+    control,
+    process_alive,
     read_state,
     remove_state,
+    run_with_control,
     start_background,
     state_path,
+    status_background,
     stop_background,
 )
 
@@ -74,6 +83,256 @@ def test_corrupted_state_returns_actionable_error(settings):
     path.write_text("invalid json")
     with pytest.raises(ServiceError, match="Cannot read service state"):
         read_state(path)
+
+
+def test_status_absent_service_does_not_create_state(settings):
+    assert status_background(settings, "127.0.0.1", 8742).state == "stopped"
+    assert not state_path(settings, "127.0.0.1", 8742).exists()
+
+
+@pytest.mark.parametrize("pid", [None, 12345])
+def test_status_dead_process_preserves_stale_state(settings, monkeypatch, pid):
+    path = save_state(settings, pid=pid, control_port=1234)
+    before = path.read_bytes()
+    monkeypatch.setattr("service.service.process_alive", lambda pid: False)
+    monkeypatch.setattr(
+        "service.service.control_status", lambda state: pytest.fail("contacted dead PID")
+    )
+    assert status_background(settings, "127.0.0.1", 8742).state == "stopped"
+    assert path.read_bytes() == before
+
+
+def test_status_launch_without_control_endpoint_is_starting(settings):
+    path = save_state(settings, log_path="/actual/startup.log")
+    before = path.read_bytes()
+    result = status_background(settings, "127.0.0.1", 8742)
+    assert result.state == "starting"
+    assert result.pid is None  # The launcher PID is not the server PID.
+    assert result.log_path == "/actual/startup.log"
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("started, expected", [(True, "running"), (False, "starting")])
+def test_status_verifies_authenticated_readiness(settings, monkeypatch, started, expected):
+    path = save_state(settings, pid=os.getpid(), control_port=1234)
+    before = path.read_bytes()
+
+    def respond(request):
+        assert request.method == "GET"
+        assert str(request.url) == "http://127.0.0.1:1234/status"
+        assert request.headers["Authorization"] == "Bearer test-secret"
+        return httpx.Response(200, json={"pid": os.getpid(), "started": started})
+
+    client = httpx.Client(transport=httpx.MockTransport(respond))
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    result = status_background(settings, "127.0.0.1", 8742)
+    assert result.state == expected
+    assert result.pid == os.getpid()
+    assert result.uptime_seconds is None  # Older servers do not report diagnostics.
+    assert result.documents is None
+    assert result.index_location is None
+    assert path.read_bytes() == before
+
+
+def test_status_reports_live_diagnostics_without_changing_state(settings, monkeypatch):
+    path = save_state(settings, pid=os.getpid(), control_port=1234, log_path="launch.log")
+    before = path.read_bytes()
+    payload = {
+        "pid": os.getpid(), "started": True, "uptime_seconds": 90061.5,
+        "documents": 12, "chunks": 345, "dimensions": 256, "model": "loaded-model",
+        "index_location": "/loaded/explicit.npz", "log_path": "/actual/override.log",
+    }
+    client = httpx.Client(transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, json=payload)
+    ))
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    result = status_background(settings, "127.0.0.1", 8742)
+    assert result.uptime_seconds == 90061.5
+    assert (result.documents, result.chunks, result.dimensions) == (12, 345, 256)
+    assert result.model == "loaded-model"
+    assert result.index_location == "/loaded/explicit.npz"
+    assert result.log_path == "/actual/override.log"
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "extra", [{"uptime_seconds": -1}, {"uptime_seconds": float("nan")},
+              {"documents": -1}, {"chunks": "123"}, {"dimensions": 0}]
+)
+def test_status_rejects_invalid_diagnostics(settings, monkeypatch, extra):
+    save_state(settings, pid=os.getpid(), control_port=1234)
+    payload = {"pid": os.getpid(), "started": True, **extra}
+    client = httpx.Client(transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, content=json.dumps(payload))
+    ))
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    with pytest.raises(ServiceError, match="Invalid response"):
+        status_background(settings, "127.0.0.1", 8742)
+
+
+@pytest.mark.parametrize("started, exiting", [(True, False), (False, False), (True, True)])
+def test_real_control_endpoint_reports_diagnostics_and_requires_auth(
+    settings, started, exiting
+):
+    path = save_state(settings, log_path="/actual/server.log")
+    index_location = settings.index_path.parent / "explicit.npz"
+    stats = IndexStats(documents=2, chunks=10, dimensions=256, model="test-model", sources=[])
+
+    class Server:
+        should_exit = exiting
+
+        def __init__(self):
+            self.started = started
+
+        def run(self):
+            before = path.read_bytes()
+            result = status_background(settings, "127.0.0.1", 8742)
+            expected = "stopping" if exiting else "running" if started else "starting"
+            assert result.state == expected
+            assert result.pid == os.getpid()
+            assert result.uptime_seconds >= 0
+            assert (result.documents, result.chunks, result.dimensions) == (2, 10, 256)
+            assert result.model == "test-model"
+            assert result.index_location == str(index_location)
+            assert result.log_path == "/actual/server.log"
+            current = read_state(path)
+            with httpx.Client(trust_env=False) as client:
+                response = client.get(f"http://127.0.0.1:{current.control_port}/status")
+            assert response.status_code == 401
+            assert "test-model" not in response.text
+            assert path.read_bytes() == before
+
+    run_with_control(
+        Server(), path, "test-secret", index_stats=stats, index_location=index_location,
+    )
+    assert not path.exists()
+
+
+def test_launcher_records_actual_log_override(settings, tmp_path, monkeypatch):
+    log_path = tmp_path / "custom.log"
+
+    def spawn(command, environment, logs):
+        state = read_state(state_path(settings, "127.0.0.1", 8742))
+        assert state.log_path == str(log_path.resolve())
+        assert logs.name == str(log_path)
+        return _ExitedProcess()
+
+    monkeypatch.setattr("service.service._spawn_detached", spawn)
+    with pytest.raises(ServiceError, match="exited with code 7"):
+        start_background(
+            ["python", "-m", "cli"], {}, settings, "127.0.0.1", 8742, log_path,
+        )
+
+
+@pytest.mark.parametrize(
+    "payload, error",
+    [
+        ({"pid": os.getpid() + 1, "started": True}, "identity does not match"),
+        ([], "Invalid response"),
+        ({"pid": os.getpid(), "started": "false"}, "Invalid response"),
+        ({"pid": os.getpid()}, "Invalid response"),
+        ({"started": True}, "Invalid response"),
+    ],
+)
+def test_status_rejects_unverified_control_responses(settings, monkeypatch, payload, error):
+    path = save_state(settings, pid=os.getpid(), control_port=1234)
+    before = path.read_bytes()
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+    client = httpx.Client(transport=transport)
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    with pytest.raises(ServiceError, match=error):
+        status_background(settings, "127.0.0.1", 8742)
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("status_code", [401, 500])
+def test_status_control_http_failure_is_not_readiness(settings, monkeypatch, status_code):
+    save_state(settings, pid=os.getpid(), control_port=1234)
+    transport = httpx.MockTransport(lambda request: httpx.Response(status_code))
+    client = httpx.Client(transport=transport)
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    with pytest.raises(ServiceError, match="Cannot contact managed Oracle server"):
+        status_background(settings, "127.0.0.1", 8742)
+
+
+def test_status_control_connection_failure(settings, monkeypatch):
+    save_state(settings, pid=os.getpid(), control_port=1234)
+
+    def refuse(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(refuse))
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    with pytest.raises(ServiceError, match="connection refused"):
+        status_background(settings, "127.0.0.1", 8742)
+
+
+def test_control_rejects_missing_service_pid(monkeypatch):
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"pid": os.getpid(), "started": True})
+    )
+    client = httpx.Client(transport=transport)
+    monkeypatch.setattr("service.service.httpx.Client", lambda **kwargs: client)
+    with pytest.raises(ServiceError, match="identity does not match"):
+        control(ServiceState(token="secret", launcher_pid=os.getpid(), control_port=1234))
+
+
+@pytest.mark.parametrize("wait_result, alive", [(258, True), (0, False)])
+def test_windows_process_check_polls_handle_without_signalling(monkeypatch, wait_result, alive):
+    kernel32 = Mock()
+    kernel32.OpenProcess.return_value = 123
+    kernel32.WaitForSingleObject.return_value = wait_result
+    loader = Mock(return_value=kernel32)
+    monkeypatch.setattr("service.service.ctypes.WinDLL", loader, raising=False)
+    monkeypatch.setattr("service.service.ctypes.get_last_error", lambda: 0, raising=False)
+    monkeypatch.setattr("service.service.os.name", "nt")
+    monkeypatch.setattr("service.service.os.kill", Mock(side_effect=AssertionError("sent signal")))
+    assert process_alive(456) is alive
+    kernel32.OpenProcess.assert_called_once_with(0x00100000, False, 456)
+    kernel32.WaitForSingleObject.assert_called_once_with(123, 0)
+    kernel32.CloseHandle.assert_called_once_with(123)
+
+
+@pytest.mark.parametrize(
+    "error, alive", [(None, True), (ProcessLookupError(), False), (PermissionError(), True)]
+)
+def test_posix_process_check_uses_signal_zero(monkeypatch, error, alive):
+    kill = Mock(side_effect=error)
+    monkeypatch.setattr("service.service.os.name", "posix")
+    monkeypatch.setattr("service.service.os.kill", kill)
+    assert process_alive(456) is alive
+    kill.assert_called_once_with(456, 0)
+
+
+@pytest.mark.parametrize("pid", [None, 0, -1])
+def test_process_check_ignores_invalid_pid(monkeypatch, pid):
+    monkeypatch.setattr("service.service.os.kill", Mock(side_effect=AssertionError("sent signal")))
+    assert not process_alive(pid)
+
+
+@pytest.mark.parametrize("error, alive", [(87, False), (5, True), (6, None)])
+def test_windows_process_check_open_failure(monkeypatch, error, alive):
+    kernel32 = Mock()
+    kernel32.OpenProcess.return_value = None
+    monkeypatch.setattr("service.service.ctypes.WinDLL", Mock(return_value=kernel32), raising=False)
+    monkeypatch.setattr("service.service.ctypes.get_last_error", lambda: error, raising=False)
+    if alive is None:
+        with pytest.raises(ServiceError, match="Windows error 6"):
+            _windows_process_alive(456)
+    else:
+        assert _windows_process_alive(456) is alive
+    kernel32.CloseHandle.assert_not_called()
+
+
+def test_windows_process_check_closes_handle_after_wait_failure(monkeypatch):
+    kernel32 = Mock()
+    kernel32.OpenProcess.return_value = 123
+    kernel32.WaitForSingleObject.return_value = 0xFFFFFFFF
+    monkeypatch.setattr("service.service.ctypes.WinDLL", Mock(return_value=kernel32), raising=False)
+    monkeypatch.setattr("service.service.ctypes.get_last_error", lambda: 6, raising=False)
+    with pytest.raises(ServiceError, match="Windows error 6"):
+        _windows_process_alive(456)
+    kernel32.CloseHandle.assert_called_once_with(123)
 
 
 NO_WINDOW = 0x08000000

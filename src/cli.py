@@ -49,12 +49,19 @@ from runtime.presentation import (
     RichIngestProgress,
     format_duration,
     format_evidence,
+    format_service_status,
     wants_live_panel,
 )
 from runtime.progress import IngestProgress, NullProgress, tracked_stage
 from runtime.runtime import run_saved_server, setup_logging
 from runtime.server import create_app, create_mcp, remote_fetch, remote_search, remote_sources
-from service.service import ServiceError, run_with_control, start_background, stop_background
+from service.service import (
+    ServiceError,
+    run_with_control,
+    start_background,
+    status_background,
+    stop_background,
+)
 from storages.checkpoint import SQLiteCheckpoint, checkpoint_path
 from storages.preparation import SQLitePreparationCache, preparation_path
 from storages.storage import StorageError
@@ -222,6 +229,7 @@ def run_server(
     token: str | None,
     service_state: Path | None = None,
     service_token: str | None = None,
+    index_location: Path | None = None,
 ) -> None:
     """Run the server in this process, optionally with managed shutdown support."""
     stats = index.stats
@@ -241,7 +249,10 @@ def run_server(
         )
     )
     if service_state is not None and service_token is not None:
-        run_with_control(server, service_state, service_token)
+        run_with_control(
+            server, service_state, service_token, index_stats=stats,
+            index_location=index_location,
+        )
     else:
         server.run()
 
@@ -577,7 +588,10 @@ def _serve_command(
         except (EmbeddingError, StorageError, OSError, ValueError) as exc:
             fail(exc)
         try:
-            run_server(loaded, host, port, token, Path(service_state), service_token)
+            run_server(
+                loaded, host, port, token, Path(service_state), service_token,
+                index_location=index or settings.index_path.parent,
+            )
         except ServiceError as exc:
             fail(exc)
         return
@@ -670,6 +684,25 @@ def serve_start(
 ) -> None:
     """Start the server; detached unless --debug or --foreground is specified."""
     _serve_command(ctx, index, region, profile, host, port, token, debug, foreground)
+
+
+@serve_app.command("status")
+def serve_status(
+    ctx: typer.Context,
+    host: Host = None,
+    port: Port = None,
+) -> None:
+    """Check the managed server; exit 0 only when it is running and ready."""
+    settings: Settings = ctx.obj
+    host = host or settings.server.host
+    port = port or settings.server.port
+    try:
+        status = status_background(settings, host, port)
+    except ServiceError as exc:
+        fail(exc)
+    typer.echo(format_service_status(status, host, port))
+    if status.state != "running":
+        raise typer.Exit(1)
 
 
 @serve_app.command("stop")

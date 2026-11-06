@@ -8,7 +8,10 @@ Linux kernel, using GitHub pull requests as the public review record.
 
 1. Discuss substantial features, architecture changes, and compatibility breaks
    in an issue before implementing them.
-2. Fork the repository and create a topic branch from `main`.
+2. Fork the repository and create a topic branch from `main`. Use a purpose-based
+   prefix such as `fix/`, `feature/`, `docs/`, `refactor/`, `test/`, or `chore/`,
+   followed by a short descriptive name. Do not use agent, assistant, or tool names
+   as branch prefixes (for example, `codex/`, `claude/`, or `copilot/`).
 3. Keep each commit focused on one logical change. Explain the problem and why
    the solution works in its commit message. Keep unrelated cleanup separate.
 4. Follow the contributor setup and verification commands in [README.md](README.md).
