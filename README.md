@@ -285,9 +285,19 @@ upgrading to populate the new fields. Status itself never restarts the server.
 The bundled catalog includes [Database Design — 2nd Edition](https://opentextbc.ca/dbdesign01/)
 (`database-design`) for data modeling, relationships, keys and normalization,
 and the [PostgreSQL 18 manual](https://www.postgresql.org/docs/18/)
-(`postgresql-18`) for SQL, indexing, transactions and administration.
+(`postgresql-18`) for SQL, indexing, transactions and administration, alongside
+C and C++ references (`c-language-reference`, `cpp-language-reference`),
+algebraic foundations for LLMs (`linear-algebra-llm`,
+`boolean-algebra-discrete-math`), self-attention mechanisms
+(`self-attention-mechanisms`), the GPT papers and Andrej Karpathy
+from-scratch references (`gpt-foundations-and-karpathy`), GPU/CUDA hardware and
+LLM VRAM loading/quantization (`gpu-cuda-architecture`,
+`llm-vram-loading-and-quantization`), data structures and algorithms
+(`data-structures-and-algorithms`), and software architecture/DDD/design patterns
+(`software-architecture-and-patterns`).
 With these entries registered, run
-`oracle data download database-design postgresql-18` to download both PDFs.
+`oracle data download c-language-reference cpp-language-reference linear-algebra-llm boolean-algebra-discrete-math self-attention-mechanisms gpt-foundations-and-karpathy gpu-cuda-architecture llm-vram-loading-and-quantization data-structures-and-algorithms software-architecture-and-patterns`
+to download them.
 Existing user manifests are preserved during upgrades; add new entries with
 `oracle data add` if they are missing from `oracle data list`.
 

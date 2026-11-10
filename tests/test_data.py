@@ -353,3 +353,24 @@ def test_download_resources_with_custom_ssl_context(data_settings, download_serv
     custom_ctx = create_ssl_context()
     path, = download_resources(settings, ["orchard"], ssl_context=custom_ctx)
     assert path.read_bytes() == handler.body
+
+
+def test_bundled_sources_manifest_is_valid(data_settings):
+    bundled_manifest = Path(__file__).resolve().parents[1] / "sources.json"
+    data_settings.data.manifest = str(bundled_manifest)
+    resources = read_resources(data_settings)
+    resource_ids = {entry.id for entry in resources}
+    expected_ids = {
+        "c-language-reference",
+        "cpp-language-reference",
+        "linear-algebra-llm",
+        "boolean-algebra-discrete-math",
+        "self-attention-mechanisms",
+        "gpt-foundations-and-karpathy",
+        "gpu-cuda-architecture",
+        "llm-vram-loading-and-quantization",
+        "data-structures-and-algorithms",
+        "software-architecture-and-patterns",
+    }
+    assert expected_ids.issubset(resource_ids)
+

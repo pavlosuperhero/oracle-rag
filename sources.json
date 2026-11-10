@@ -1758,6 +1758,322 @@
           "url": "https://man7.org/tlpi/download/TLPI-24-Process_Creation.pdf"
         }
       ]
+    },
+    {
+      "id": "c-language-reference",
+      "title": "C Programming — GNU C Reference Manual, Modern C, and Beej's Guide",
+      "source": "https://www.gnu.org/software/gnu-c-manual/",
+      "author": "Richard Stallman, Trevis Rothwell, and Nelson Beebe; Jens Gustedt; Brian \"Beej\" Hall",
+      "license": "GNU FDL 1.3+ (GNU C Manual); CC BY-NC-ND 4.0 (Modern C and Beej's Guide); preserve each work's attribution and license notices.",
+      "note": "Comprehensive C language and systems programming references: lexical elements, types, pointers, memory allocation, declarations, preprocessor, standard library, and modern C17/C23 practices.",
+      "downloads": [
+        {
+          "filename": "gnu-c-manual.pdf",
+          "url": "https://www.gnu.org/software/gnu-c-manual/gnu-c-manual.pdf"
+        },
+        {
+          "filename": "modern-c.pdf",
+          "url": "https://inria.hal.science/hal-02383654/document"
+        },
+        {
+          "filename": "beej-guide-to-c.pdf",
+          "url": "https://beej.us/guide/bgc/pdf/bgc_usl_c_1.pdf"
+        }
+      ]
+    },
+    {
+      "id": "cpp-language-reference",
+      "title": "C++ Programming — C++ Core Guidelines, Google C++ Style Guide, and Reference Notes",
+      "source": "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines",
+      "author": "Bjarne Stroustrup, Herb Sutter, and contributors; Google; Stack Overflow Documentation contributors",
+      "license": "MIT / Standard C++ Foundation terms (C++ Core Guidelines); CC BY 3.0 (Google C++ Style Guide); CC BY-SA (C++ Notes for Professionals).",
+      "note": "Authoritative modern C++ design guidelines (RAII, resource safety, templates, concurrency, bounds/type/lifetime profiles), Google C++ conventions, and practical language reference notes.",
+      "downloads": [
+        {
+          "filename": "cpp-core-guidelines.md",
+          "url": "https://raw.githubusercontent.com/isocpp/CppCoreGuidelines/master/CppCoreGuidelines.md"
+        },
+        {
+          "filename": "google-cpp-style-guide.html",
+          "url": "https://google.github.io/styleguide/cppguide.html"
+        },
+        {
+          "filename": "cpp-notes-for-professionals.pdf",
+          "url": "https://books.goalkicker.com/CPlusPlusBook/CPlusPlusNotesForProfessionals.pdf"
+        }
+      ]
+    },
+    {
+      "id": "linear-algebra-llm",
+      "title": "Mathematics for Machine Learning — Linear Algebra, Matrix Decompositions, and Vector Calculus",
+      "source": "https://mml-book.github.io/",
+      "author": "Marc Peter Deisenroth, A. Aldo Faisal, and Cheng Soon Ong",
+      "license": "Copyright Cambridge University Press; author-hosted free PDF for personal/educational use; see landing page for terms.",
+      "note": "Core algebraic foundations for LLMs and deep learning: vector spaces, matrices, tensor and dot-product operations, projections, eigenvalues/eigenvectors, singular value decomposition (SVD), matrix gradients, and probability.",
+      "downloads": [
+        {
+          "filename": "mathematics-for-machine-learning.pdf",
+          "url": "https://mml-book.github.io/book/mml-book.pdf"
+        }
+      ]
+    },
+    {
+      "id": "boolean-algebra-discrete-math",
+      "title": "Boolean Algebra, Formal Logic, and Discrete Mathematics — Open Intro and forall x",
+      "source": "https://discrete.openmathbooks.org/",
+      "author": "Oscar Levin; P. D. Magnus, Tim Button, and Richard Zach (Open Logic Project)",
+      "license": "CC BY-SA 4.0 (Discrete Mathematics: An Open Introduction); CC BY 4.0 (forall x: Calgary).",
+      "note": "Foundational Boolean algebra, truth tables, Boolean connectives, tautologies, normal forms (CNF/DNF), propositional and predicate logic, sets, relations, and symbolic reasoning.",
+      "downloads": [
+        {
+          "filename": "discrete-mathematics-open-intro.pdf",
+          "url": "https://discrete.openmathbooks.org/pdfs/dmoi3-tablet.pdf"
+        },
+        {
+          "filename": "forallx-calgary-formal-logic.pdf",
+          "url": "https://forallx.openlogicproject.org/forallxyyc.pdf"
+        }
+      ]
+    },
+    {
+      "id": "self-attention-mechanisms",
+      "title": "Self-Attention Mechanisms — Alignment, Relative/Rotary Positional Attention, FlashAttention, and GQA",
+      "source": "https://arxiv.org/abs/1706.03762",
+      "author": "Bahdanau et al.; Luong et al.; Lin et al.; Shaw et al.; Su et al.; Dao et al.; Ainslie et al.; Jay Alammar",
+      "license": "See each paper's arXiv license and author terms; public access does not imply unrestricted redistribution.",
+      "note": "Complements transformer-attention (Vaswani et al., 2017) with the evolution and mechanics of self-attention: Bahdanau additive alignment, Luong dot-product attention, structured self-attentive embeddings, relative positional encodings, RoPE (RoFormer), IO-aware exact FlashAttention, Grouped-Query Attention (GQA), and The Illustrated Transformer.",
+      "downloads": [
+        {
+          "filename": "bahdanau-neural-machine-translation-attention.pdf",
+          "url": "https://arxiv.org/pdf/1409.0473"
+        },
+        {
+          "filename": "luong-effective-attention-nmt.pdf",
+          "url": "https://arxiv.org/pdf/1508.04025"
+        },
+        {
+          "filename": "structured-self-attentive-sentence-embedding.pdf",
+          "url": "https://arxiv.org/pdf/1703.03130"
+        },
+        {
+          "filename": "self-attention-relative-position.pdf",
+          "url": "https://arxiv.org/pdf/1803.02155"
+        },
+        {
+          "filename": "roformer-rotary-position-embedding.pdf",
+          "url": "https://arxiv.org/pdf/2104.09864"
+        },
+        {
+          "filename": "flashattention-io-aware-exact-attention.pdf",
+          "url": "https://arxiv.org/pdf/2205.14135"
+        },
+        {
+          "filename": "grouped-query-attention-gqa.pdf",
+          "url": "https://arxiv.org/pdf/2305.13245"
+        },
+        {
+          "filename": "illustrated-transformer.html",
+          "url": "https://jalammar.github.io/illustrated-transformer/"
+        }
+      ]
+    },
+    {
+      "id": "gpt-foundations-and-karpathy",
+      "title": "GPT Foundations and Andrej Karpathy's From-Scratch Implementations (GPT-1/2/3, minGPT, nanoGPT, llm.c)",
+      "source": "https://github.com/karpathy/nanoGPT",
+      "author": "Alec Radford et al. (OpenAI); Tom B. Brown et al.; Peter J. Liu et al.; Jimmy Lei Ba et al.; Dan Hendrycks and Kevin Gimpel; Rico Sennrich et al.; Ilya Loshchilov and Frank Hutter; Andrej Karpathy",
+      "license": "MIT (Karpathy repositories); see OpenAI and arXiv publication licenses for papers.",
+      "note": "Primary papers and architectural building blocks on which GPT-1/GPT-2/GPT-3 and Andrej Karpathy's minGPT, nanoGPT, nanochat, and llm.c (pure C/CUDA GPT) were built: OpenAI GPT-1 (generative pre-training), GPT-2 (zero-shot multitask), GPT-3 (few-shot), decoder-only Transformer (Liu et al., 2018), LayerNorm, GELU, BPE subword tokenization, AdamW decoupled weight decay, and Karpathy's training guides.",
+      "downloads": [
+        {
+          "filename": "gpt1-improving-language-understanding.pdf",
+          "url": "https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf"
+        },
+        {
+          "filename": "gpt2-unsupervised-multitask-learners.pdf",
+          "url": "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf"
+        },
+        {
+          "filename": "gpt3-few-shot-learners.pdf",
+          "url": "https://arxiv.org/pdf/2005.14165"
+        },
+        {
+          "filename": "transformer-decoder-generating-wikipedia.pdf",
+          "url": "https://arxiv.org/pdf/1801.10198"
+        },
+        {
+          "filename": "layer-normalization.pdf",
+          "url": "https://arxiv.org/pdf/1607.06450"
+        },
+        {
+          "filename": "gelu-activations.pdf",
+          "url": "https://arxiv.org/pdf/1606.08415"
+        },
+        {
+          "filename": "bpe-subword-tokenization.pdf",
+          "url": "https://arxiv.org/pdf/1508.07909"
+        },
+        {
+          "filename": "adamw-decoupled-weight-decay.pdf",
+          "url": "https://arxiv.org/pdf/1711.05101"
+        },
+        {
+          "filename": "karpathy-mingpt-readme.md",
+          "url": "https://raw.githubusercontent.com/karpathy/minGPT/master/README.md"
+        },
+        {
+          "filename": "karpathy-nanogpt-readme.md",
+          "url": "https://raw.githubusercontent.com/karpathy/nanoGPT/master/README.md"
+        },
+        {
+          "filename": "karpathy-nanochat-readme.md",
+          "url": "https://raw.githubusercontent.com/karpathy/nanochat/master/README.md"
+        },
+        {
+          "filename": "karpathy-llmc-readme.md",
+          "url": "https://raw.githubusercontent.com/karpathy/llm.c/master/README.md"
+        },
+        {
+          "filename": "karpathy-recipe-for-training-neural-networks.html",
+          "url": "https://karpathy.github.io/2019/04/25/recipe/"
+        }
+      ]
+    },
+    {
+      "id": "gpu-cuda-architecture",
+      "title": "GPU Architecture, CUDA Memory Hierarchy, and Deep Learning Performance",
+      "source": "https://docs.nvidia.com/deeplearning/performance/index.html",
+      "author": "NVIDIA; Horace He; Ulrich Drepper",
+      "license": "NVIDIA documentation terms; author terms (Making Deep Learning Go Brrrr; What Every Programmer Should Know About Memory).",
+      "note": "How GPU hardware works and executes AI workloads: Streaming Multiprocessors (SMs), Tensor Cores, warps, SRAM/shared memory vs HBM global VRAM, L1/L2 cache lines, memory bandwidth vs compute (arithmetic intensity and roofline model), PCIe/NVLink host-to-device transfers, pinned memory, coalesced memory access, and CPU/RAM cache hierarchy.",
+      "downloads": [
+        {
+          "filename": "cuda-c-best-practices-guide.pdf",
+          "url": "https://docs.nvidia.com/cuda/pdf/CUDA_C_Best_Practices_Guide.pdf"
+        },
+        {
+          "filename": "nvidia-gpu-performance-background.html",
+          "url": "https://docs.nvidia.com/deeplearning/performance/dl-performance-gpu-background/index.html"
+        },
+        {
+          "filename": "nvidia-matrix-multiplication-tensor-cores.html",
+          "url": "https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html"
+        },
+        {
+          "filename": "nvidia-linear-fully-connected-layers.html",
+          "url": "https://docs.nvidia.com/deeplearning/performance/dl-performance-fully-connected/index.html"
+        },
+        {
+          "filename": "making-deep-learning-go-brrr.html",
+          "url": "https://horace.io/brrr_intro.html"
+        },
+        {
+          "filename": "what-every-programmer-should-know-about-memory.pdf",
+          "url": "https://people.freebsd.org/~lstewart/articles/cpumemory.pdf"
+        }
+      ]
+    },
+    {
+      "id": "llm-vram-loading-and-quantization",
+      "title": "How AI Models Load and Fit into GPU VRAM — Memory Anatomy, Safetensors, Offloading, Mixed Precision, and Quantization",
+      "source": "https://huggingface.co/docs/transformers/model_memory_anatomy",
+      "author": "Hugging Face (Transformers, Accelerate, Safetensors); Paulius Micikevicius et al.; Tim Dettmers et al.; Elias Frantar et al.",
+      "license": "Apache-2.0 (Hugging Face documentation); see each paper's arXiv license.",
+      "note": "Complete mechanics and math of how LLMs load into and consume GPU VRAM: parameter bytes by precision (FP32, FP16/BF16, INT8, NF4/INT4), zero-copy mmap weight loading with Safetensors, meta-device empty weight initialization, device_map shard placement and CPU/NVMe offloading, activation memory and CUDA kernel overhead, FP16/BF16 mixed-precision master weights, LLM.int8(), GPTQ post-training quantization, and QLoRA (4-bit NormalFloat, double quantization, paged optimizers).",
+      "downloads": [
+        {
+          "filename": "model-memory-anatomy.md",
+          "url": "https://raw.githubusercontent.com/huggingface/transformers/main/docs/source/en/model_memory_anatomy.md"
+        },
+        {
+          "filename": "big-model-inference-vram-offloading.md",
+          "url": "https://raw.githubusercontent.com/huggingface/accelerate/main/docs/source/concept_guides/big_model_inference.md"
+        },
+        {
+          "filename": "safetensors-zero-copy-loading.md",
+          "url": "https://raw.githubusercontent.com/huggingface/safetensors/main/README.md"
+        },
+        {
+          "filename": "quantization-overview.md",
+          "url": "https://raw.githubusercontent.com/huggingface/transformers/main/docs/source/en/quantization/overview.md"
+        },
+        {
+          "filename": "mixed-precision-training.pdf",
+          "url": "https://arxiv.org/pdf/1710.03740"
+        },
+        {
+          "filename": "llm-int8-matrix-multiplication.pdf",
+          "url": "https://arxiv.org/pdf/2208.07339"
+        },
+        {
+          "filename": "gptq-post-training-quantization.pdf",
+          "url": "https://arxiv.org/pdf/2210.17323"
+        },
+        {
+          "filename": "qlora-quantized-llm-finetuning.pdf",
+          "url": "https://arxiv.org/pdf/2305.14314"
+        }
+      ]
+    },
+    {
+      "id": "data-structures-and-algorithms",
+      "title": "Data Structures and Algorithms — Open Data Structures Textbook and Python Container/Heap/Bisect Reference",
+      "source": "https://opendatastructures.org/",
+      "author": "Pat Morin; Python Software Foundation",
+      "license": "CC BY 2.5 CA (Open Data Structures); PSF License v2 (Python documentation).",
+      "note": "Rigorous data structures and algorithms textbook (arrays, linked lists, skip lists, hash tables, binary/red-black/scapegoat trees, treaps, binary heaps, sorting, graphs, BFS/DFS, and external-memory B-trees; downloaded via Wayback Machine mirror for reliability) paired with official Python data structure, deque/Counter/ChainMap, heap queue, and binary search references.",
+      "downloads": [
+        {
+          "filename": "open-data-structures-python.pdf",
+          "url": "https://web.archive.org/web/20240901000000/https://opendatastructures.org/ods-python.pdf"
+        },
+        {
+          "filename": "python-data-structures.html",
+          "url": "https://docs.python.org/3/tutorial/datastructures.html"
+        },
+        {
+          "filename": "python-collections.html",
+          "url": "https://docs.python.org/3/library/collections.html"
+        },
+        {
+          "filename": "python-heapq.html",
+          "url": "https://docs.python.org/3/library/heapq.html"
+        },
+        {
+          "filename": "python-bisect.html",
+          "url": "https://docs.python.org/3/library/bisect.html"
+        }
+      ]
+    },
+    {
+      "id": "software-architecture-and-patterns",
+      "title": "Software Architecture, Domain-Driven Design, and Design Patterns — DDD Reference, Python Patterns, and Data Locality",
+      "source": "https://www.domainlanguage.com/ddd/reference/",
+      "author": "Eric Evans; Brandon Rhodes; Robert Nystrom",
+      "license": "CC BY 4.0 (Domain-Driven Design Reference); author-hosted public guides (Python Design Patterns and Game Programming Patterns).",
+      "note": "Addresses software architecture and clean design gaps: Eric Evans' canonical Domain-Driven Design pattern definitions (Bounded Contexts, Aggregates, Entities, Value Objects, Repositories, Domain Events, Anticorruption Layer), Pythonic Gang-of-Four composition and decoupling patterns, and hardware-aware data locality (Data-Oriented Design vs OOP pointer chasing).",
+      "downloads": [
+        {
+          "filename": "domain-driven-design-reference.pdf",
+          "url": "https://www.domainlanguage.com/wp-content/uploads/2016/05/DDD_Reference_2015-03.pdf"
+        },
+        {
+          "filename": "composition-over-inheritance.html",
+          "url": "https://python-patterns.guide/gang-of-four/composition-over-inheritance/"
+        },
+        {
+          "filename": "prebound-methods-and-callables.html",
+          "url": "https://python-patterns.guide/python/prebound-methods/"
+        },
+        {
+          "filename": "data-locality-cache-optimization.html",
+          "url": "https://gameprogrammingpatterns.com/data-locality.html"
+        },
+        {
+          "filename": "decoupling-patterns.html",
+          "url": "https://gameprogrammingpatterns.com/decoupling-patterns.html"
+        }
+      ]
     }
   ]
 }
