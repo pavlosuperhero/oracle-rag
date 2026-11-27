@@ -47,6 +47,7 @@ from runtime.presentation import (
     PlainIngestProgress,
     RichDownloadProgress,
     RichIngestProgress,
+    format_compact_evidence,
     format_duration,
     format_evidence,
     format_service_status,
@@ -110,9 +111,24 @@ class SkillTarget(StrEnum):
     ANTIGRAVITY = "antigravity"
 
 
-class QueryFormat(StrEnum):
+class ListFormat(StrEnum):
     JSON = "json"
     TEXT = "text"
+
+
+class QueryFormat(StrEnum):
+    COMPACT = "compact"
+    TEXT = "text"
+    JSON = "json"
+
+
+def resolve_query_format(output_format: QueryFormat | None, full: bool) -> QueryFormat:
+    """Pure choice of query output: compact by default, ``--full`` selects full text."""
+    if not full:
+        return output_format or QueryFormat.COMPACT
+    if output_format in {QueryFormat.COMPACT, QueryFormat.JSON}:
+        raise ValueError(f"--full cannot be combined with --format {output_format.value}.")
+    return QueryFormat.TEXT
 
 
 def safe_console_text(value: str) -> str:
@@ -379,15 +395,15 @@ def ingest(
 def data_list(
     ctx: typer.Context,
     output_format: Annotated[
-        QueryFormat, typer.Option("--format", help="Output format: readable text or JSON.")
-    ] = QueryFormat.TEXT,
+        ListFormat, typer.Option("--format", help="Output format: readable text or JSON.")
+    ] = ListFormat.TEXT,
 ) -> None:
     """Show registered sources and download progress; no embedding calls."""
     try:
         resources = list_resources(ctx.obj)
     except (DataError, OSError) as exc:
         fail(exc)
-    if output_format is QueryFormat.JSON:
+    if output_format is ListFormat.JSON:
         typer.echo(json.dumps(resources, indent=2))
         return
     if not resources:
@@ -932,22 +948,35 @@ def query(
     top_k: Annotated[int | None, typer.Option(min=1, max=20)] = None,
     source: Annotated[str | None, typer.Option(help="Filter by source path substring.")] = None,
     output_format: Annotated[
-        QueryFormat, typer.Option("--format", help="Output: cited evidence or diagnostic JSON.")
-    ] = QueryFormat.TEXT,
+        QueryFormat | None,
+        typer.Option(
+            "--format",
+            help="compact (default) previews, text for full excerpts, json for diagnostics.",
+        ),
+    ] = None,
+    full: Annotated[
+        bool, typer.Option("--full", help="Print full untrusted excerpts (same as --format text).")
+    ] = False,
     url: Url = None,
     token: Token = None,
 ) -> None:
-    """Retrieve cited passages from a running server."""
+    """Retrieve candidate passages from a running server; compact previews by default."""
     settings: Settings = ctx.obj
+    try:
+        resolved = resolve_query_format(output_format, full)
+    except ValueError as exc:
+        fail(exc)
     try:
         request = Query(query=text, top_k=top_k or settings.retrieval.top_k, source=source)
         result = asyncio.run(remote_search(request, url, token, settings))
     except (httpx.HTTPError, ValidationError) as exc:
         fail(exc)
-    if output_format is QueryFormat.JSON:
+    if resolved is QueryFormat.JSON:
         output = json.dumps(result.model_dump(mode="json"), ensure_ascii=True, indent=2)
-    else:
+    elif resolved is QueryFormat.TEXT:
         output = safe_console_text(format_evidence(result))
+    else:
+        output = safe_console_text(format_compact_evidence(result))
     typer.echo(output)
 
 

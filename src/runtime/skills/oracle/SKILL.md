@@ -118,13 +118,15 @@ operations and are not prerequisites to repeat on every request.
    If Oracle MCP tools are unavailable, say so and run `oracle sources`.
 2. Select a source-path substring from that catalog. Split multi-topic requests
    into focused questions and search each requested source separately.
-3. Prefer MCP `search(query)` and `fetch(id)` for native source citations.
-   For a source filter or explicit top-k, use MCP `oracle` or
-   `oracle query "QUESTION" --source SOURCE --top-k 3`, then MCP `fetch(id)`
-   for the selected passage IDs when available. Read the actual passages,
-   not just titles or ranking scores.
-4. Check that the passage supports the specific claim. Refine weak retrieval;
-   finding the right document alone does not establish relevant evidence.
+3. Default workflow: MCP `search(query)` returns candidate references only;
+   then `fetch(id)` just the plausible IDs. For a source filter or explicit
+   top-k, run `oracle query "QUESTION" --source SOURCE --top-k 3` (compact
+   preview) and `fetch(id)` the plausible IDs. Read the fetched passages, not
+   just titles, previews, or ranking order.
+4. Judge whether the fetched untrusted text supports the specific claim. Refine
+   weak retrieval; finding the right document alone does not establish relevant
+   evidence. If the fetched text gives no support, say exactly: "The retrieved
+   passages provide no evidence for this claim."
 5. Answer with citations and distinguish source-backed facts from your analysis.
    Report missing sources, empty results, and retrieval failures explicitly.
 
@@ -145,10 +147,16 @@ Check PEP status and target Python version before applying historical guidance.
   indexed passage view and retains server authentication. Source-panel display
   and persistence are controlled by the host; tool output alone does not prove
   a source was attached. A cloud client cannot access a local loopback URL.
-- CLI queries and MCP `oracle` return cited evidence blocks by default, with
-  passage ID, title, source URI, available location, and excerpt. XML markup
-  separates reference data; escaped metacharacters decode to the original text.
-  Unrepresentable console characters may appear as escape sequences.
+- Keep three things distinct: candidate matches (search/compact output),
+  citations (passage ID, title, location you actually fetched and read), and
+  support judgments (your assessment that the text backs a claim).
+- `oracle query` prints a compact list by default: rank, title, location, ID,
+  and a one-line untrusted preview (140 chars per item, 700 total; control and
+  bidi characters are escaped). This reduces context use; it is not a
+  relevance filter or a robustness guarantee. Use `--full` (or `--format text`)
+  to restore the previous full XML evidence blocks, with excerpts and source
+  URIs; `--full` cannot be combined with `--format compact|json`. MCP `oracle`
+  still returns the full evidence blocks.
 - `oracle query "QUESTION" --format json` returns the full diagnostic response
   for scripts, including ranking scores and nullable metadata. Non-ASCII JSON
   characters are escaped for legacy Windows consoles; decoding preserves text.
@@ -307,7 +315,8 @@ Procedure
    indexed PDF page numbers. This does not call Bedrock or consume embedding
    tokens. If MCP is unavailable, run oracle sources to obtain the same JSON.
    Do not assume a book is present just because it was downloaded previously.
-2. Prefer MCP search with query, followed by fetch for relevant returned IDs.
+2. Default to MCP search with query (candidate references only), then fetch
+   only the plausible returned IDs and judge whether the text supports the claim.
    To filter by a specific book or set top_k (1–20), use oracle with query,
    optional top_k, and optional source (a case-insensitive path substring),
    then fetch selected passage IDs for citation-compatible responses.
@@ -317,7 +326,8 @@ Procedure
    then oracle query "QUESTION" --top-k 5 (add --source SOURCE when useful).
    Set ORACLE_URL for a nondefault server and ORACLE_TOKEN if authentication
    is enabled.
-4. Read the evidence blocks. Each passage contains an ID, title, source URI,
+4. Read the fetched passages (CLI default output is a compact preview list; use
+   --full for evidence blocks). Each passage has an ID, title, source URI,
    location, and excerpt. No page or source-line locator is invented when
    unavailable. Full scores and nullable metadata remain in CLI diagnostic JSON
    (`--format json`) and the HTTP API; scores are not confidence probabilities.

@@ -192,12 +192,22 @@ def test_query_sources_and_evaluate(
     assert "semantic_score" in diagnostic
     result = invoke(settings, "query", "apple")
     assert result.exit_code == 0, result.output
-    assert '<passage id="apple">' in result.stdout
-    assert "<location>Lines 1-1</location>" in result.stdout
+    assert result.stdout.splitlines()[2].startswith("1. ")
+    assert "id=apple" in result.stdout
+    assert "[untrusted preview]" in result.stdout
+    assert "<passage" not in result.stdout
     assert "score" not in result.stdout
-    explicit = invoke(settings, "query", "apple", "--format", "text")
+    explicit = invoke(settings, "query", "apple", "--format", "compact")
     assert explicit.exit_code == 0, explicit.output
     assert explicit.stdout == result.stdout
+    full = invoke(settings, "query", "apple", "--format", "text")
+    assert full.exit_code == 0, full.output
+    assert '<passage id="apple">' in full.stdout
+    assert "<location>Lines 1-1</location>" in full.stdout
+    assert "score" not in full.stdout
+    flagged = invoke(settings, "query", "apple", "--full")
+    assert flagged.exit_code == 0, flagged.output
+    assert flagged.stdout == full.stdout
     result = invoke(settings, "sources")
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["documents"] == 2
@@ -206,6 +216,41 @@ def test_query_sources_and_evaluate(
     result = invoke(settings, "evaluate", str(dataset), "--k", "1")
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["recall_at_k"] == 1
+
+
+@pytest.mark.parametrize("output_format", ["json", "compact"])
+def test_query_full_conflicts_fail_before_search(
+    settings: Settings, monkeypatch, output_format
+) -> None:
+    search = Mock()
+    monkeypatch.setattr(cli, "remote_search", search)
+    result = invoke(settings, "query", "apple", "--full", "--format", output_format)
+    assert result.exit_code == 1
+    assert "--full cannot be combined" in result.output
+    search.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "output_format, full, expected",
+    [
+        (None, False, cli.QueryFormat.COMPACT),
+        (cli.QueryFormat.JSON, False, cli.QueryFormat.JSON),
+        (cli.QueryFormat.TEXT, False, cli.QueryFormat.TEXT),
+        (None, True, cli.QueryFormat.TEXT),
+        (cli.QueryFormat.TEXT, True, cli.QueryFormat.TEXT),
+    ],
+)
+def test_resolve_query_format(output_format, full, expected) -> None:
+    assert cli.resolve_query_format(output_format, full) is expected
+
+
+def test_data_list_text_and_json_still_work(settings: Settings) -> None:
+    as_json = invoke(settings, "data", "list", "--format", "json")
+    assert as_json.exit_code == 0, as_json.output
+    assert isinstance(json.loads(as_json.stdout), list)
+    as_text = invoke(settings, "data", "list", "--format", "text")
+    assert as_text.exit_code == 0, as_text.output
+    assert invoke(settings, "data", "list", "--format", "compact").exit_code != 0
 
 
 def test_dataset_parse_errors_include_line_number(tmp_path: Path) -> None:
