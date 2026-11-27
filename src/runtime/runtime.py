@@ -13,6 +13,7 @@ from configs.configs import Settings, load_config
 from data.index import MemoryIndex
 from embeddings import create_embedder
 from runtime.server import create_app
+from runtime.telemetry import RedactingLogFilter
 
 
 def setup_logging(
@@ -62,6 +63,9 @@ def setup_logging(
                 encoding="utf-8",
             )
         )
+    redacting_filter = RedactingLogFilter()
+    for handler in handlers:
+        handler.addFilter(redacting_filter)
     logging.basicConfig(
         level=level,
         format=config.format,

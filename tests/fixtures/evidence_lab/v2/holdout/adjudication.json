@@ -1,0 +1,249 @@
+{
+  "schema_version": 2,
+  "split": "holdout",
+  "rubric_version": "evidence-lab-rubric-v2",
+  "reviewer_1": "synthetic-pass-1-author",
+  "reviewer_2": "synthetic-pass-2-auditor",
+  "entries": [
+    {
+      "case_id": "HOLD-01",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-02",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-03",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-04",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-05",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-06",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-07",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-08",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-09",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-10",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-11",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-12",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-13",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-14",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-15",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-16",
+      "reviewer_1_judgment": "Reviewer 1 included only the exact humidity threshold sentence as grade=2.",
+      "reviewer_2_judgment": "Reviewer 2 proposed marking the general humidity monitoring sentence as grade=1.",
+      "disagreement": true,
+      "resolution": "Resolved against amber-sensor-spec.txt: monitoring sentence mentions humidity but lacks the 88% / 10-minute escalation threshold, so it is grade=1 partial support.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "HOLD-17",
+      "reviewer_1_judgment": "Verified 4 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 4 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-18",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-19",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-20",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-21",
+      "reviewer_1_judgment": "Reviewer 1 anchored only amber-sensor-spec.txt for the 6-second sampling interval.",
+      "reviewer_2_judgment": "Reviewer 2 pointed out amber-sensor-notes.txt states the identical 6-second normal interval.",
+      "disagreement": true,
+      "resolution": "Resolved against amber-sensor-notes.txt: both passages fully state the 6-second normal barometric cadence and are recorded as interchangeable grade=2 spans.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "HOLD-22",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-23",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-24",
+      "reviewer_1_judgment": "Reviewer 1 left basalt-router-v1.txt unjudged for the revision-2 BASALT_612 query.",
+      "reviewer_2_judgment": "Reviewer 2 required tagging basalt-router-v1.txt as grade=0 freshness negative.",
+      "disagreement": true,
+      "resolution": "Resolved against basalt-router-v1.txt and basalt-router-v2.txt: superseded DNS meaning in revision 1 is explicitly labeled grade=0 stale negative.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "HOLD-25",
+      "reviewer_1_judgment": "Reviewer 1 treated cobalt-ledger-poison.txt as out-of-scope.",
+      "reviewer_2_judgment": "Reviewer 2 requested marking the adversarial injection span as grade=0 negative.",
+      "disagreement": true,
+      "resolution": "Resolved against cobalt-ledger-poison.txt: tagged grade=0 so poisoned passage ranking triggers SOURCE_STALE_OR_CONFLICT.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "HOLD-26",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen holdout source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-27",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-28",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-29",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "HOLD-30",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no holdout source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    }
+  ]
+}

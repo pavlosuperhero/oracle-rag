@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_PREFIXES = frozenset({".pdf", ".txt", ".md", ".rst", ".html", ".htm"})
 DEFAULT_EXTRACT_WORKERS = 4
+MAX_DOCUMENT_BYTES = 50 * 1024 * 1024
+MAX_HTML_BYTES = 20 * 1024 * 1024
+MAX_PDF_PAGES = 2_000
+MAX_EXTRACTED_CHARS = 25_000_000
 
 # Elements removed from the selected content root. Documentation generators embed
 # feedback widgets, edit links, comment stubs and non-semantic footers inside
@@ -107,15 +111,51 @@ class Chunk:
         return str(self.source)
 
 
-def discover(path: Path, recursive: bool = False) -> list[Path]:
-    path = path.expanduser().resolve(strict=True)
-    if path.is_file():
-        if path.suffix.lower() not in SUPPORTED_PREFIXES:
-            raise DocumentError(f"Unsupported document type: {path.suffix}")
-        return [path]
+def _reject_intermediate_symlinks(candidate: Path, anchor: Path) -> None:
+    """Reject symlink segments strictly between ``anchor`` and ``candidate``."""
+    try:
+        relative = candidate.relative_to(anchor)
+    except ValueError:
+        return
+    current = anchor
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise DocumentError(f"Symlink document paths are not allowed: {candidate.name}")
+
+
+def _resolve_confined_path(path: Path, allowed_root: Path | None) -> tuple[Path, Path | None]:
+    raw_path = path.expanduser()
+    abs_path = Path(os.path.abspath(raw_path))
+    if raw_path.is_symlink() or abs_path.is_symlink():
+        raise DocumentError(f"Symlink document paths are not allowed: {raw_path.name}")
+    root: Path | None = None
+    if allowed_root is not None:
+        raw_root = allowed_root.expanduser()
+        abs_root = Path(os.path.abspath(raw_root))
+        root = raw_root.resolve(strict=True)
+        _reject_intermediate_symlinks(abs_path, abs_root)
+        _reject_intermediate_symlinks(abs_path, root)
+    resolved = raw_path.resolve(strict=True)
+    if root is not None and not resolved.is_relative_to(root):
+        raise DocumentError(f"Document path escapes allowed root: {raw_path.name}")
+    return resolved, root
+
+
+def discover(
+    path: Path,
+    recursive: bool = False,
+    *,
+    allowed_root: Path | None = None,
+) -> list[Path]:
+    resolved_path, root = _resolve_confined_path(path, allowed_root)
+    if resolved_path.is_file():
+        if resolved_path.suffix.lower() not in SUPPORTED_PREFIXES:
+            raise DocumentError(f"Unsupported document type: {resolved_path.suffix}")
+        return [resolved_path]
     files: list[Path] = []
     if recursive:
-        for directory, subdirectories, names in os.walk(path, followlinks=False):
+        for directory, subdirectories, names in os.walk(resolved_path, followlinks=False):
             subdirectories[:] = sorted(
                 name
                 for name in subdirectories
@@ -125,7 +165,7 @@ def discover(path: Path, recursive: bool = False) -> list[Path]:
             )
             files.extend(Path(directory) / name for name in names if not name.startswith("."))
     else:
-        files = list(path.iterdir())
+        files = list(resolved_path.iterdir())
     files = sorted(
         (
             file
@@ -134,21 +174,32 @@ def discover(path: Path, recursive: bool = False) -> list[Path]:
             and not file.is_symlink()
             and file.suffix.lower() in SUPPORTED_PREFIXES
             and not file.name.startswith(".")
+            and (root is None or file.resolve().is_relative_to(root))
         ),
         key=lambda file: str(file).casefold(),
     )
     if not files:
-        raise DocumentError(f"No supported documents found in {path}; use -r for subfolders")
+        raise DocumentError(
+            f"No supported documents found in {resolved_path}; use -r for subfolders"
+        )
     return files
 
 
-def extract_html(raw_html: str, default_title: str) -> tuple[str, str]:
+def extract_html(
+    raw_html: str,
+    default_title: str,
+    *,
+    max_html_bytes: int = MAX_HTML_BYTES,
+    max_extracted_chars: int = MAX_EXTRACTED_CHARS,
+) -> tuple[str, str]:
     """Return ``(title, text)`` for an HTML document without page boilerplate.
 
     The content root is chosen first and noise is removed only from its descendants,
     so a broad selector such as ``[class*="footer"]`` can never discard the content
     itself. The title falls back to ``default_title`` when the page has none.
     """
+    if len(raw_html.encode("utf-8")) > max_html_bytes:
+        raise DocumentError(f"HTML document exceeds byte limit ({max_html_bytes} bytes).")
     soup = BeautifulSoup(raw_html, "html.parser")
     title = default_title
     if soup.title and soup.title.get_text(" ", strip=True):
@@ -166,39 +217,94 @@ def extract_html(raw_html: str, default_title: str) -> tuple[str, str]:
 
     lines = (line.strip() for line in root.get_text("\n").splitlines())
     text = "\n".join(line for line in lines if line and not BOILERPLATE_LINE.fullmatch(line))
+    if len(text) > max_extracted_chars:
+        raise DocumentError(
+            f"Extracted HTML text exceeds character limit ({max_extracted_chars} chars)."
+        )
     return title, text
 
 
-def extract(path: Path) -> list[Section]:
-    if path.suffix.lower() == ".pdf":
-        try:
-            reader = PdfReader(path)
-            if reader.is_encrypted and not reader.decrypt(""):
-                raise DocumentError(f"PDF requires a password: {path}")
-            sections = [
-                Section(path, path.stem, text, page=number, line_citations=False)
-                for number, page in enumerate(reader.pages, 1)
-                if (text := page.extract_text() or "").strip()
-            ]
-        except PdfReadError as e:
-            raise DocumentError(f"Cannot read PDF {path}: {e}") from e
-    else:
-        try:
-            text = path.read_text(encoding="utf-8-sig")
-        except UnicodeDecodeError as e:
-            raise DocumentError(f"Document must use UTF-8: {path}") from e
-        title = path.stem
-        html = path.suffix.lower() in {".html", ".htm"}
-        if html:
-            title, text = extract_html(text, title)
-        elif path.suffix.lower() == ".rst":
-            match = re.search(r"^Title:\s*(.+)$", text, re.MULTILINE)
-            if match:
-                title = f"{path.stem}: {match.group(1).strip()}"
-        sections = (
-            [Section(path, title, text, page=None, line_citations=not html)] if text.strip() else []
+def _extract_pdf(
+    path: Path,
+    *,
+    max_pdf_pages: int,
+    max_extracted_chars: int,
+) -> list[Section]:
+    try:
+        reader = PdfReader(path)
+        if reader.is_encrypted and not reader.decrypt(""):
+            raise DocumentError(f"PDF requires a password: {path}")
+        pages = reader.pages
+        if len(pages) > max_pdf_pages:
+            raise DocumentError(
+                f"PDF exceeds page limit ({max_pdf_pages} pages): {path.name}"
+            )
+        sections: list[Section] = []
+        extracted_chars = 0
+        for number, page in enumerate(pages, 1):
+            text = page.extract_text() or ""
+            extracted_chars += len(text)
+            if extracted_chars > max_extracted_chars:
+                raise DocumentError(
+                    f"Extracted PDF text exceeds character limit "
+                    f"({max_extracted_chars} chars): {path.name}"
+                )
+            if text.strip():
+                sections.append(
+                    Section(path, path.stem, text, page=number, line_citations=False)
+                )
+        return sections
+    except PdfReadError as e:
+        raise DocumentError(f"Cannot read PDF {path}: {e}") from e
+
+
+def extract(
+    path: Path,
+    *,
+    max_bytes: int = MAX_DOCUMENT_BYTES,
+    max_html_bytes: int = MAX_HTML_BYTES,
+    max_pdf_pages: int = MAX_PDF_PAGES,
+    max_extracted_chars: int = MAX_EXTRACTED_CHARS,
+) -> list[Section]:
+    file_size = path.stat().st_size
+    if file_size > max_bytes:
+        raise DocumentError(f"Document exceeds byte limit ({max_bytes} bytes): {path.name}")
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        return _extract_pdf(
+            path,
+            max_pdf_pages=max_pdf_pages,
+            max_extracted_chars=max_extracted_chars,
         )
-    return sections
+    html = suffix in {".html", ".htm"}
+    if html and file_size > max_html_bytes:
+        raise DocumentError(
+            f"HTML document exceeds byte limit ({max_html_bytes} bytes): {path.name}"
+        )
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError as e:
+        raise DocumentError(f"Document must use UTF-8: {path}") from e
+    if len(text) > max_extracted_chars:
+        raise DocumentError(
+            f"Extracted document text exceeds character limit "
+            f"({max_extracted_chars} chars): {path.name}"
+        )
+    title = path.stem
+    if html:
+        title, text = extract_html(
+            text,
+            title,
+            max_html_bytes=max_html_bytes,
+            max_extracted_chars=max_extracted_chars,
+        )
+    elif suffix == ".rst":
+        match = re.search(r"^Title:\s*(.+)$", text, re.MULTILINE)
+        if match:
+            title = f"{path.stem}: {match.group(1).strip()}"
+    return (
+        [Section(path, title, text, page=None, line_citations=not html)] if text.strip() else []
+    )
 
 
 def _chunk_end(text: str, start: int, size: int) -> int:
@@ -383,10 +489,11 @@ async def load_chunks_async(
     *,
     workers: int = DEFAULT_EXTRACT_WORKERS,
     preparation: PreparationCache | None = None,
+    allowed_root: Path | None = None,
 ) -> list[Chunk]:
     config = (settings or load_config()).chunking
     with tracked_stage(progress or NullProgress(), "discover") as advance:
-        files = discover(path, recursive)
+        files = discover(path, recursive, allowed_root=allowed_root)
         advance(len(files))
     chunks = await chunk_files_async(
         files, config, progress, workers=workers, preparation=preparation
@@ -401,8 +508,17 @@ def load_chunks(
     recursive: bool = False,
     settings: Settings | None = None,
     progress: IngestProgress | None = None,
-    *, preparation: PreparationCache | None = None,
+    *,
+    preparation: PreparationCache | None = None,
+    allowed_root: Path | None = None,
 ) -> list[Chunk]:
     return asyncio.run(
-        load_chunks_async(path, recursive, settings, progress, preparation=preparation)
+        load_chunks_async(
+            path,
+            recursive,
+            settings,
+            progress,
+            preparation=preparation,
+            allowed_root=allowed_root,
+        )
     )

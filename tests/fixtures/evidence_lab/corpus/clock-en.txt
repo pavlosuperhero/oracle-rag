@@ -1,0 +1,4 @@
+# Oriya timekeeping
+The Oriya clock enters standby after three missed pulses.
+The Oria demonstration simulator has a mute button that suppresses audible ticks.
+Operator manuals describe calibration for other oscillator families.

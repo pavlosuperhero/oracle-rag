@@ -1,0 +1,118 @@
+{
+  "schema_version": 2,
+  "split": "holdout",
+  "provenance": "authored-synthetic-holdout",
+  "adjudication": "dual-pass-rubric-audited",
+  "cases_sha256": "8c1da73d06f71f43445653c2cb39b22131a8cc49ab9fa174f6ee25261158bb26",
+  "adjudication_sha256": "af7f2a98aa44e3936aaff49f425f8b5cb01be8db1fe30df0d03558db6dae0b2f",
+  "sources": [
+    {
+      "path": "amber-sensor-notes.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/amber-sensor-notes.txt",
+      "sha256": "803e88836a1f318d0a7f3086259502de420ac62da72a2d4cc772d8ff932d5801",
+      "revision": "v2",
+      "family": "amber-sensor",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "amber-sensor-spec.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/amber-sensor-spec.txt",
+      "sha256": "8d5339ccdf6f5597f6e33fc6eab6b674c091da6ee72a7aa69e7d7bed8872c12f",
+      "revision": "v2",
+      "family": "amber-sensor",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "basalt-router-v1.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/basalt-router-v1.txt",
+      "sha256": "337325fdfb2fb8ec642469a265a6dff3395f1dfe897ed7c3c005d9f8f2cad647",
+      "revision": "v1",
+      "family": "basalt-router",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "basalt-router-v2.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/basalt-router-v2.txt",
+      "sha256": "7821f13b84b6d175799a5fb959d1f992ed66682092ef065170fd4e5dba75e709",
+      "revision": "v2",
+      "family": "basalt-router",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "cobalt-ledger-poison.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/cobalt-ledger-poison.txt",
+      "sha256": "78a7c3042c914e4d02598fb32e516188eb968715def81702b94c982361900ab5",
+      "revision": "v1-poison",
+      "family": "cobalt-ledger",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "cobalt-ledger.rst",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/cobalt-ledger.rst",
+      "sha256": "f45b3bed9751e43d6fb5f1235de0ea496cb1f69b1dbbed14c861937aff33e479",
+      "revision": "v2",
+      "family": "cobalt-ledger",
+      "format": "rst",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "kestrel-telemetry.pdf",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/kestrel-telemetry.pdf",
+      "sha256": "b25e210f42c679ceadb35e1be69d41070ab91530a07705e383797ffec4e046ef",
+      "revision": "v2",
+      "family": "kestrel-pdf",
+      "format": "pdf",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "meridian-console.html",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/meridian-console.html",
+      "sha256": "02f7298004fe438dabbf529ebae9f22568b9b778f0224780ad45874858f48584",
+      "revision": "v2",
+      "family": "meridian-html",
+      "format": "html",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "saffron-guide-en.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/saffron-guide-en.txt",
+      "sha256": "f6c65ee809f4868319acbb06f065621c569f3e2b3382602fbb916a0b185b8197",
+      "revision": "v2",
+      "family": "saffron-uk",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "saffron-guide-uk.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/saffron-guide-uk.txt",
+      "sha256": "758505724af26fccf0fc58b94044217d2dd0187b5b5af58bdda15b99fdc8817e",
+      "revision": "v2",
+      "family": "saffron-uk",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "verbena-auth-mirror.md",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/verbena-auth-mirror.md",
+      "sha256": "cc97aaac07dcfee837554761ee1627aed881389d09ea8c162bc47f3998bffcd7",
+      "revision": "v2",
+      "family": "verbena-auth",
+      "format": "md",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "verbena-auth.md",
+      "uri": "fixture://oracle-evidence-lab/v2/holdout/verbena-auth.md",
+      "sha256": "cc97aaac07dcfee837554761ee1627aed881389d09ea8c162bc47f3998bffcd7",
+      "revision": "v2",
+      "family": "verbena-auth",
+      "format": "md",
+      "provenance_tag": "authored-synthetic"
+    }
+  ]
+}

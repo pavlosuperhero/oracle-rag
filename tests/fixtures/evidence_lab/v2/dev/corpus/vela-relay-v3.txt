@@ -1,0 +1,21 @@
+Vela Relay Guide — Revision 3 (Latest)
+
+A VELA_209 warning means the secondary ring consumed its recovery token.
+
+Rotate the Vela relay key using vela.auth.rotate() after draining the active ring.
+
+Operational note 1 for vela-relay-v3 (ring-topology): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v3 across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for ring-topology, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 2 for vela-relay-v3 (key-vault): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v3 across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for key-vault, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Heartbeat and Failover Timers
+
+The relay heartbeat interval is 13 seconds in revision 3.
+
+Failover promotion requires two consecutive quorum votes from standby nodes.
+
+Operational note 3 for vela-relay-v3 (quorum-audit): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v3 across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for quorum-audit, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 4 for vela-relay-v3 (peer-fencing): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v3 across rack bay 14, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for peer-fencing, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 5 for vela-relay-v3 (telemetry-export): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v3 across rack bay 15, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for telemetry-export, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.

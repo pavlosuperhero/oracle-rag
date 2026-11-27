@@ -1,0 +1,13 @@
+# Slate Queue Frequently Asked Questions
+
+## Retention and Cleanup
+
+In Slate, audit records in the retained-message queue are removed after seven days.
+
+Queue operators should not delete active journal directories manually while brokers are online.
+
+Operational note 1 for slate-faq (cleanup-schedule): During routine shift handoffs, operators inspect the telemetry dashboard for slate-faq across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for cleanup-schedule, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 2 for slate-faq (faq-diagnostics): During routine shift handoffs, operators inspect the telemetry dashboard for slate-faq across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for faq-diagnostics, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 3 for slate-faq (faq-upgrades): During routine shift handoffs, operators inspect the telemetry dashboard for slate-faq across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for faq-upgrades, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.

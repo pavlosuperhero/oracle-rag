@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "GoldSpan": {
+      "additionalProperties": false,
+      "description": "Character-anchored evidence span inside a frozen fixture source.",
+      "properties": {
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "group": {
+          "minLength": 1,
+          "title": "Group",
+          "type": "string"
+        },
+        "grade": {
+          "enum": [
+            0,
+            1,
+            2
+          ],
+          "title": "Grade",
+          "type": "integer"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        }
+      },
+      "required": [
+        "source",
+        "start",
+        "end",
+        "text",
+        "group",
+        "grade"
+      ],
+      "title": "GoldSpan",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One passage-level evaluation case belonging to a dev or holdout split.",
+  "properties": {
+    "id": {
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "split": {
+      "enum": [
+        "dev",
+        "holdout"
+      ],
+      "title": "Split",
+      "type": "string"
+    },
+    "family": {
+      "minLength": 1,
+      "title": "Family",
+      "type": "string"
+    },
+    "category": {
+      "minLength": 1,
+      "title": "Category",
+      "type": "string"
+    },
+    "query": {
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    },
+    "gold": {
+      "items": {
+        "$ref": "#/$defs/GoldSpan"
+      },
+      "title": "Gold",
+      "type": "array"
+    },
+    "source_filter": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Filter"
+    },
+    "expected_no_answer": {
+      "title": "Expected No Answer",
+      "type": "boolean"
+    },
+    "adjudication_status": {
+      "default": "agreed",
+      "enum": [
+        "agreed",
+        "adjudicated",
+        "ambiguous"
+      ],
+      "title": "Adjudication Status",
+      "type": "string"
+    },
+    "note": {
+      "default": "",
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "split",
+    "family",
+    "category",
+    "query",
+    "gold",
+    "expected_no_answer"
+  ],
+  "title": "PassageEvalCase",
+  "type": "object"
+}

@@ -31,6 +31,7 @@ from embeddings.embeddings import (
     normalize,
     validate_embedding_input,
 )
+from runtime.telemetry import redact_text
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +57,15 @@ class BedrockEmbedding(BaseEmbedding):
         region: str | None = None,
         profile: str | None = None,
         settings: Settings | None = None,
+        *,
+        allow_content_debug_logs: bool = False,
     ) -> None:
         resolved_settings = settings or load_config()
         config = getattr(resolved_settings, "bedrock", None) or resolved_settings.provider
         self.dimensions: int = config.dimensions
         self.model: str = config.model
         self._config = config
+        self._allow_content_debug_logs = allow_content_debug_logs
         self._profile = profile or os.environ.get("AWS_PROFILE") or config.profile
         connect_timeout = getattr(config, "connect_timeout", None) or config.connection_timeout
         self._sdk_config = Config(
@@ -94,7 +98,7 @@ class BedrockEmbedding(BaseEmbedding):
             self._executor: ThreadPoolExecutor | None = None
             self._resource_lock = Lock()
         except BotoCoreError as e:
-            raise EmbeddingError(f"Cannot initialize bedrock: {e}") from e
+            raise EmbeddingError(f"Cannot initialize bedrock: {redact_text(str(e))}") from e
         logger.info(
             "Bedrock configured: model=%s region=%s dimensions=%d workers=%d "
             "connect_timeout=%s read_timeout=%s total_max_attempts=%d transport=boto3-sync",
@@ -106,6 +110,11 @@ class BedrockEmbedding(BaseEmbedding):
             config.read_timeout,
             config.retry_attempts,
         )
+
+    @property
+    def region(self) -> str | None:
+        """Configured AWS region name for this Bedrock embedder."""
+        return self._region
 
     def close(self) -> None:
         """Release pooled resources after callers have settled; later calls reopen them."""
@@ -129,11 +138,11 @@ class BedrockEmbedding(BaseEmbedding):
             # INFO is retained in the rotating log, without disrupting the live panel.
             logger.info(
                 "Bedrock transport attempt failed: attempt=%d total_max_attempts=%d "
-                "model=%s region=%s connect_timeout=%s read_timeout=%s cause=%s",
+                "model=%s region=%s connect_timeout=%s read_timeout=%s cause=%s detail=%s",
                 attempts, self._config.retry_attempts, self.model, self._region,
                 self._config.connect_timeout, self._config.read_timeout,
                 type(caught_exception).__name__,
-                exc_info=(type(caught_exception), caught_exception, caught_exception.__traceback__),
+                redact_text(str(caught_exception)),
             )
 
     def _record_retries(self, response: Mapping[str, Any]) -> bool:
@@ -180,18 +189,22 @@ class BedrockEmbedding(BaseEmbedding):
         if not retries_known and attempts:
             self.usage.record(retries=attempts - 1)
             retries_known = True
+        safe_detail = redact_text(str(exc))
         logger.info(
-            "Bedrock failure details: attempts=%s total_max_attempts=%d",
-            attempts or "unavailable", self._config.retry_attempts,
-            exc_info=(type(exc), exc, exc.__traceback__),
+            "Bedrock failure details: attempts=%s total_max_attempts=%d cause=%s detail=%s",
+            attempts or "unavailable",
+            self._config.retry_attempts,
+            type(exc).__name__,
+            safe_detail,
         )
         # Some SDK exceptions store the low-level cause in kwargs rather than __cause__.
         underlying = getattr(exc, "kwargs", {}).get("error")
         if isinstance(underlying, BaseException):
             logger.info(
-                "Bedrock underlying connection error: type=%s errno=%s",
-                type(underlying).__name__, getattr(underlying, "errno", None),
-                exc_info=(type(underlying), underlying, underlying.__traceback__),
+                "Bedrock underlying connection error: type=%s errno=%s detail=%s",
+                type(underlying).__name__,
+                getattr(underlying, "errno", None),
+                redact_text(str(underlying)),
             )
         self.usage.record_error(retries_unknown=not retries_known)
         logger.error(
@@ -201,7 +214,7 @@ class BedrockEmbedding(BaseEmbedding):
             "known" if retries_known else "unavailable",
             attempts or "unavailable",
         )
-        return EmbeddingError(f"Bedrock embedding request failed: {exc}. {advice}")
+        return EmbeddingError(f"Bedrock embedding request failed: {safe_detail}. {advice}")
 
     async def _embed_one_async(self, text: str) -> list[float]:
         # Own the pool so repeated asyncio.run() calls keep the same threads and client.
@@ -226,9 +239,17 @@ class BedrockEmbedding(BaseEmbedding):
     def _embed_one(self, text: str) -> list[float]:
         started = perf_counter()
         validate_embedding_input(text)
-        logger.debug(
-            "Embedding input: model=%s region=%s content=%r", self.model, self._region, text
-        )
+        if self._allow_content_debug_logs:
+            logger.debug(
+                "Embedding input: model=%s region=%s content=%r", self.model, self._region, text
+            )
+        else:
+            logger.debug(
+                "Embedding input: model=%s region=%s chars=%d",
+                self.model,
+                self._region,
+                len(text),
+            )
         state = _RequestAttempts()
         token = _attempts.set(state)
         try:

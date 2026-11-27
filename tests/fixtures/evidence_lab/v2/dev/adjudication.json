@@ -1,0 +1,329 @@
+{
+  "schema_version": 2,
+  "split": "dev",
+  "rubric_version": "evidence-lab-rubric-v2",
+  "reviewer_1": "synthetic-pass-1-author",
+  "reviewer_2": "synthetic-pass-2-auditor",
+  "entries": [
+    {
+      "case_id": "DEV-01",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-02",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-03",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-04",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-05",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-06",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-07",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-08",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-09",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-10",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-11",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-12",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-13",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-14",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-15",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-16",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-17",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-18",
+      "reviewer_1_judgment": "Reviewer 1 marked only the two-condition sentence as grade=2.",
+      "reviewer_2_judgment": "Reviewer 2 proposed marking the single-condition summary sentence as grade=2 as well.",
+      "disagreement": true,
+      "resolution": "Resolved against juniper-cache-ops.txt: the shorter sentence omits the disk queue depth pause condition, so it is grade=1 partial support while the full two-clause sentence is grade=2.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "DEV-19",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-20",
+      "reviewer_1_judgment": "Verified 3 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 3 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-21",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-22",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-23",
+      "reviewer_1_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 2 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-24",
+      "reviewer_1_judgment": "Reviewer 1 anchored only slate-queue.md for the 7-day retention period.",
+      "reviewer_2_judgment": "Reviewer 2 identified an equivalent grade=2 answer in slate-queue-faq.md.",
+      "disagreement": true,
+      "resolution": "Resolved against slate-queue-faq.md: both passages independently state the exact 7-day retention rule, so both are recorded as interchangeable grade=2 spans in group 'answer'.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "DEV-25",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-26",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-27",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-28",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-29",
+      "reviewer_1_judgment": "Verified 3 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 3 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-30",
+      "reviewer_1_judgment": "Reviewer 1 omitted the revision-2 heartbeat span from gold.",
+      "reviewer_2_judgment": "Reviewer 2 flagged vela-relay-v2.txt as an explicit grade=0 freshness negative.",
+      "disagreement": true,
+      "resolution": "Resolved against vela-relay-v2.txt and vela-relay-v3.txt: query specifies revision 3, so revision 2's 21-second interval is explicitly labeled grade=0 stale negative.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "DEV-31",
+      "reviewer_1_judgment": "Verified 3 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 3 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-32",
+      "reviewer_1_judgment": "Reviewer 1 classified the red-team archive as unjudged.",
+      "reviewer_2_judgment": "Reviewer 2 requested labeling the prompt-injection passage as grade=0 negative.",
+      "disagreement": true,
+      "resolution": "Resolved against olivine-poison-archive.txt: explicit grade=0 label allows automated SOURCE_STALE_OR_CONFLICT attribution if the poisoned chunk outranks authoritative guidance.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "DEV-33",
+      "reviewer_1_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "reviewer_2_judgment": "Verified 1 anchored span(s) against frozen dev source text.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-34",
+      "reviewer_1_judgment": "Reviewer 1 labeled only the multi-paragraph span spanning both interlock clauses.",
+      "reviewer_2_judgment": "Reviewer 2 noted the release-authorization sentence alone partially answers the query.",
+      "disagreement": true,
+      "resolution": "Resolved against cedar-manual.rst: retained full spanning sentence pair as grade=2 chunk-boundary control and added the release-authorization clause as grade=1 partial support.",
+      "final_status": "adjudicated"
+    },
+    {
+      "case_id": "DEV-35",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-36",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-37",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-38",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-39",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    },
+    {
+      "case_id": "DEV-40",
+      "reviewer_1_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "reviewer_2_judgment": "Confirmed no-answer label after verifying no dev source supports the claim.",
+      "disagreement": false,
+      "resolution": "",
+      "final_status": "agreed"
+    }
+  ]
+}

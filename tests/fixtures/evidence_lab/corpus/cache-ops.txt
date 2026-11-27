@@ -1,0 +1,4 @@
+# Juniper cache operations
+The juniper-cache invalidates only entries whose namespace fingerprint changes.
+A tombstone is kept for 23 minutes to prevent stale replicas from restoring deleted items.
+The command juniper cache verify compares the replica checksum with the local journal.

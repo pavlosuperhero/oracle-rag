@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Span": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "grade": {
+          "enum": [
+            0,
+            1,
+            2
+          ],
+          "title": "Grade",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "start",
+        "end",
+        "text",
+        "group",
+        "grade"
+      ],
+      "title": "Span",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "category": {
+      "title": "Category",
+      "type": "string"
+    },
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "gold": {
+      "items": {
+        "$ref": "#/$defs/Span"
+      },
+      "title": "Gold",
+      "type": "array"
+    },
+    "source_filter": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Filter"
+    },
+    "expected_no_answer": {
+      "title": "Expected No Answer",
+      "type": "boolean"
+    },
+    "note": {
+      "title": "Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "category",
+    "query",
+    "gold",
+    "source_filter",
+    "expected_no_answer",
+    "note"
+  ],
+  "title": "Case",
+  "type": "object"
+}

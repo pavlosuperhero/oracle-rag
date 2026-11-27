@@ -1,0 +1,4 @@
+# Vela relay operations revision 3
+A VELA_209 warning means the secondary ring consumed its recovery token.
+Rotate the Vela relay key using vela.auth.rotate() after draining the active ring.
+The relay heartbeat interval is 13 seconds in revision 3.

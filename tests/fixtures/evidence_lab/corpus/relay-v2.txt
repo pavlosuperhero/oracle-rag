@@ -1,0 +1,4 @@
+# Vela relay operations revision 2 (withdrawn)
+A VELA_209 warning means the secondary ring is undergoing a scheduled reset.
+The relay heartbeat interval is 21 seconds in revision 2.
+The former command vela.auth.rotate() required no draining.
