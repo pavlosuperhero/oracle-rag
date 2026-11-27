@@ -21,6 +21,9 @@ from data.data import (
     read_resources,
     remove_resource,
 )
+from data.network_policy import NetworkPolicy
+
+LOCAL_POLICY = NetworkPolicy(allow_private_hosts=True)
 
 
 @pytest.fixture
@@ -93,13 +96,18 @@ def test_download_cache_force_remove_and_managed_ingest(data_settings, download_
     settings = data_settings
     url, handler = download_server
     add_resource(settings, resource(url))
-    path, = download_resources(settings, ["orchard"])
+    path, = download_resources(settings, ["orchard"], network_policy=LOCAL_POLICY)
     assert path.read_bytes() == handler.body
     assert list_resources(settings)[0]["downloads"][0]["downloaded"]
-    assert download_resources(settings, ["orchard"]) == [path]
+    assert download_resources(settings, ["orchard"], network_policy=LOCAL_POLICY) == [path]
     assert handler.calls == 1
     handler.body = b"Updated apple orchard guide."
-    assert download_resources(settings, [], all_sources=True, force=True) == [path]
+    assert (
+        download_resources(
+            settings, [], all_sources=True, force=True, network_policy=LOCAL_POLICY
+        )
+        == [path]
+    )
     assert path.read_bytes() == handler.body
     assert managed_documents(settings) == [path]
     remove_resource(settings, "orchard")
@@ -114,7 +122,7 @@ def test_failed_download_preserves_cached_file(data_settings, download_server, f
     settings = data_settings
     url, handler = download_server
     add_resource(settings, resource(url))
-    path, = download_resources(settings, ["orchard"])
+    path, = download_resources(settings, ["orchard"], network_policy=LOCAL_POLICY)
     previous = path.read_bytes()
     if failure == "oversized":
         settings.data.max_download_bytes = 5
@@ -123,7 +131,7 @@ def test_failed_download_preserves_cached_file(data_settings, download_server, f
     else:
         handler.body = b""
     with pytest.raises(DataError):
-        download_resources(settings, ["orchard"], force=True)
+        download_resources(settings, ["orchard"], force=True, network_policy=LOCAL_POLICY)
     assert path.read_bytes() == previous
     assert list(path.parent.iterdir()) == [path]
 
@@ -225,7 +233,11 @@ def register(settings, base_url, names):
 def test_downloads_overlap_when_workers_allow(data_settings, routed_server):
     base_url, _ = routed_server
     register(data_settings, base_url, ["meet-a", "meet-b"])
-    paths = asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=2))
+    paths = asyncio.run(
+        download_resources_async(
+            data_settings, [], all_sources=True, workers=2, network_policy=LOCAL_POLICY
+        )
+    )
     assert [path.read_text() for path in paths] == ["body of meet-a", "body of meet-b"]
 
 
@@ -233,23 +245,37 @@ def test_single_worker_never_overlaps(data_settings, routed_server):
     base_url, _ = routed_server
     register(data_settings, base_url, ["meet-a", "meet-b"])
     with pytest.raises(DataError, match="Cannot download"):
-        asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=1))
+        asyncio.run(
+            download_resources_async(
+                data_settings, [], all_sources=True, workers=1, network_policy=LOCAL_POLICY
+            )
+        )
 
 
 def test_paths_follow_manifest_order_despite_completion_order(data_settings, routed_server):
     base_url, gates = routed_server
     register(data_settings, base_url, ["first", "second"])
-    paths = asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=2))
+    paths = asyncio.run(
+        download_resources_async(
+            data_settings, [], all_sources=True, workers=2, network_policy=LOCAL_POLICY
+        )
+    )
     assert gates["second-done"].is_set()
     assert [path.parent.name for path in paths] == ["first", "second"]
-    assert paths == download_resources(data_settings, [], all_sources=True)
+    assert paths == download_resources(
+        data_settings, [], all_sources=True, network_policy=LOCAL_POLICY
+    )
 
 
 def test_failure_cancels_siblings_and_removes_temporary_files(data_settings, routed_server):
     base_url, gates = routed_server
     register(data_settings, base_url, ["stall", "fail"])
     with pytest.raises(DataError, match="Cannot download"):
-        asyncio.run(download_resources_async(data_settings, [], all_sources=True, workers=2))
+        asyncio.run(
+            download_resources_async(
+                data_settings, [], all_sources=True, workers=2, network_policy=LOCAL_POLICY
+            )
+        )
     assert gates["stalled"].is_set()
     leftovers = [
         path for path in data_settings.data_path.rglob("*")
@@ -268,13 +294,21 @@ def test_progress_is_emitted_on_caller_thread_with_accurate_counts(data_settings
         threads.add(threading.get_ident())
         events.append(event)
 
-    download_resources(data_settings, [], all_sources=True, progress=on_progress)
+    download_resources(
+        data_settings, [], all_sources=True, progress=on_progress, network_policy=LOCAL_POLICY
+    )
     assert threads == {threading.get_ident()}
     finished = [event for event in events if event.status == "complete"]
     assert [event.completed_files for event in finished] == [1, 2, 3]
     assert {event.total_files for event in events} == {3}
     cached_events = []
-    download_resources(data_settings, [], all_sources=True, progress=cached_events.append)
+    download_resources(
+        data_settings,
+        [],
+        all_sources=True,
+        progress=cached_events.append,
+        network_policy=LOCAL_POLICY,
+    )
     assert [event.status for event in cached_events] == ["cached"] * 3
     assert cached_events[-1].completed_files == 3
 
@@ -351,5 +385,7 @@ def test_download_resources_with_custom_ssl_context(data_settings, download_serv
     url, handler = download_server
     add_resource(settings, resource(url))
     custom_ctx = create_ssl_context()
-    path, = download_resources(settings, ["orchard"], ssl_context=custom_ctx)
+    path, = download_resources(
+        settings, ["orchard"], ssl_context=custom_ctx, network_policy=LOCAL_POLICY
+    )
     assert path.read_bytes() == handler.body

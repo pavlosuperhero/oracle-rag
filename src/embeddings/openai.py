@@ -14,6 +14,7 @@ from embeddings.embeddings import (
     EmbeddingError,
     validate_embedding_input,
 )
+from runtime.telemetry import redact_text, redact_url
 
 logger = logging.getLogger(__name__)
 
@@ -60,12 +61,16 @@ class OpenAIEmbedding(BaseEmbedding):
         base_url: str | None = None,
         api_key: str | None = None,
         settings: Settings | None = None,
+        *,
+        allow_content_debug_logs: bool = False,
+        async_transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         resolved_settings = settings or load_config()
         config = getattr(resolved_settings, "openai", None) or resolved_settings.provider
         self.dimensions: int = config.dimensions
         self.model: str = config.model
         self._config = config
+        self._allow_content_debug_logs = allow_content_debug_logs
 
         raw_base_url = (
             base_url
@@ -78,7 +83,8 @@ class OpenAIEmbedding(BaseEmbedding):
                 "or your provider configuration."
             )
         self._base_url, self._endpoint = _resolve_embeddings_endpoint(raw_base_url)
-        self.checkpoint_endpoint = self._endpoint
+        self._safe_base_url = redact_url(self._base_url)
+        self.checkpoint_endpoint = redact_url(self._endpoint)
         self._api_key = (
             api_key
             or os.environ.get("OPENAI_API_KEY")
@@ -95,7 +101,7 @@ class OpenAIEmbedding(BaseEmbedding):
         connect_timeout = getattr(config, "connect_timeout", None) or config.connection_timeout
         self._headers = headers
         # Test seam: replaces the network transport of the per-call async client.
-        self._async_transport: httpx.AsyncBaseTransport | None = None
+        self._async_transport: httpx.AsyncBaseTransport | None = async_transport
         try:
             transport = httpx.HTTPTransport(retries=config.retry_attempts)
             self._timeout = httpx.Timeout(
@@ -108,12 +114,14 @@ class OpenAIEmbedding(BaseEmbedding):
                 transport=transport,
             )
         except (httpx.HTTPError, ValueError) as exc:
-            raise EmbeddingError(f"Cannot initialize OpenAI client: {exc}") from exc
+            raise EmbeddingError(
+                f"Cannot initialize OpenAI client: {redact_text(str(exc))}"
+            ) from exc
 
         logger.info(
             "OpenAI configured: model=%s base_url=%s dimensions=%d",
             self.model,
-            self._base_url,
+            self._safe_base_url,
             self.dimensions,
         )
 
@@ -137,12 +145,20 @@ class OpenAIEmbedding(BaseEmbedding):
                 _async_client.reset(token)
 
     def _log_request(self, text: str) -> None:
-        logger.debug(
-            "Embedding input: model=%s base_url=%s content=%r",
-            self.model,
-            self._base_url,
-            text,
-        )
+        if self._allow_content_debug_logs:
+            logger.debug(
+                "Embedding input: model=%s base_url=%s content=%r",
+                self.model,
+                self._safe_base_url,
+                text,
+            )
+        else:
+            logger.debug(
+                "Embedding input: model=%s base_url=%s chars=%d",
+                self.model,
+                self._safe_base_url,
+                len(text),
+            )
 
     def _read_response(self, body: str, started: float) -> list[float]:
         try:
@@ -157,7 +173,7 @@ class OpenAIEmbedding(BaseEmbedding):
             "OpenAI response: model=%s base_url=%s tokens_in=%d "
             "tokens_out=n/a dimensions=%d duration=%.3fs",
             self.model,
-            self._base_url,
+            self._safe_base_url,
             tokens_in,
             len(embedding),
             perf_counter() - started,
@@ -166,19 +182,24 @@ class OpenAIEmbedding(BaseEmbedding):
 
     def _request_failure(self, exc: httpx.HTTPError) -> EmbeddingError:
         self.usage.record_error()
+        safe_detail = redact_text(str(exc))
         logger.info(
-            "OpenAI failure details: model=%s connect_timeout=%s read_timeout=%s",
-            self.model, self._timeout.connect, self._timeout.read,
-            exc_info=(type(exc), exc, exc.__traceback__),
+            "OpenAI failure details: model=%s connect_timeout=%s read_timeout=%s "
+            "cause=%s detail=%s",
+            self.model,
+            self._timeout.connect,
+            self._timeout.read,
+            type(exc).__name__,
+            safe_detail,
         )
         logger.error(
             "OpenAI request failed: model=%s base_url=%s tokens_in=unknown tokens_out=n/a",
             self.model,
-            self._base_url,
+            self._safe_base_url,
         )
         return EmbeddingError(
-            f"OpenAI embedding request failed: {exc}. Check LM Studio / OpenAI server URL, "
-            "model access, and that the embedding model is loaded."
+            f"OpenAI embedding request failed: {safe_detail}. Check LM Studio / OpenAI server "
+            "URL, model access, and that the embedding model is loaded."
         )
 
     def _embed_one(self, text: str) -> list[float]:
