@@ -1758,6 +1758,34 @@
           "url": "https://man7.org/tlpi/download/TLPI-24-Process_Creation.pdf"
         }
       ]
+    },
+    {
+      "id": "reasoningbank-agent-memory",
+      "title": "ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory",
+      "source": "https://arxiv.org/abs/2509.25140",
+      "author": "Siru Ouyang, Jun Yan, I-Hung Hsu, Yanfei Chen, Ke Jiang, Zifeng Wang, Rujun Han, Long T. Le, Samira Daruki, Xiangru Tang, Vishy Tirumalashetty, George Lee, Mahsan Rofouei, Hangfei Lin, Jiawei Han, Chen-Yu Lee, Tomas Pfister",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Memory framework that distills generalizable reasoning strategies from an agent's successful and failed experiences into a reasoning bank, with memory-aware test-time scaling. Relevant to the repository's reasoning bank design (docs/research/facts-and-reasoning.yml).",
+      "downloads": [
+        {
+          "filename": "reasoningbank-agent-memory.pdf",
+          "url": "https://arxiv.org/pdf/2509.25140"
+        }
+      ]
+    },
+    {
+      "id": "beyond-atomic-facts-agent-memory",
+      "title": "Rethinking How to Remember: Beyond Atomic Facts in Lifelong LLM Agent Memory",
+      "source": "https://arxiv.org/abs/2605.19952",
+      "author": "Jingwei Sun, Jianing Zhu, Jiangchao Yao, Tongliang Liu, Bo Han",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Argues that lifelong LLM agent memory should go beyond storing atomic facts. Relevant to how the repository records facts separately from the reasoning built on them (docs/research/facts-and-reasoning.yml).",
+      "downloads": [
+        {
+          "filename": "beyond-atomic-facts-agent-memory.pdf",
+          "url": "https://arxiv.org/pdf/2605.19952"
+        }
+      ]
     }
   ]
 }
