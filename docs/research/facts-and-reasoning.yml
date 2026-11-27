@@ -1,0 +1,43 @@
+schema_version: 1
+issue: 39
+historical_baseline_sha: 8b373c59f7d7520d2eff472b779c4e4c0cc928b2
+facts:
+  - id: compact-query-reproducer
+    question: What Kubernetes namespace does PEP 8 require for Python formatting?
+    full_output_bytes_observed: 11372
+    full_output_words_observed: 1569
+    candidates: 5
+    supporting_passages: 0
+    mcp_search_metadata_bytes_observed: 744
+    cli_preview_chars_per_item: 140
+    cli_preview_chars_total: 700
+    source: ../../README.md
+  - id: holdout-reproduction
+    run_id: 20261127T085919Z-3e236983
+    code_sha: 65c3d3804b6ae585703a04921158618cad23cce6
+    matched_pipeline_file_hashes: 12
+    corpus: synthetic
+    embeddings: deterministic hashed words
+    answerable_cases: 26
+    no_answer_cases: 4
+    baseline_passage_hits_at_5: 23
+    t5_passage_hits_at_5: 19
+    baseline_unsupported_returns: 3
+    t5_unsupported_returns: 0
+    t5_wins: 0
+    t5_losses: 4
+    exact_paired_two_sided_p: 0.125
+    source: oracle-retrieval-benchmark.md
+reasoning:
+  - id: keep-hybrid
+    based_on: [holdout-reproduction]
+    decision: Keep BM25L, dense cosine and RRF as the default. Keep T5 opt-in.
+    rationale: The four lost supporting hits are material for this holdout. The small synthetic sample leaves population effects uncertain.
+  - id: minimize-context
+    based_on: [compact-query-reproducer]
+    decision: Use compact CLI previews and selective MCP fetch.
+    rationale: Candidate metadata lets callers inspect matches before loading full passages. A citation identifies a passage, while the passage text determines whether it supports a claim.
+  - id: verify-cost-on-real-workloads
+    based_on: [holdout-reproduction]
+    decision: Measure one representative corpus with real neural embeddings before making production cost claims.
+    rationale: The offline fixture excludes embedding-server resource use and production query distributions.

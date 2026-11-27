@@ -4,7 +4,7 @@
 
 **Verdict**: Keep the shipped hybrid **BM25L + dense cosine + RRF** retriever as the default (`evidence_gate=None`). Keep the T5 `LexicalCoverageGate` (`lexical_coverage_v1:cov=0.45:sem=0.65:min=3`) strictly **opt-in (`NOT PROMOTED`)**.
 
-On the untouched **independent holdout** split (`30` cases across `7` disjoint source families, `41` indexed chunks, run `20261127T083806Z-efd3f59e`), T5 eliminated all no-answer false positives (`75.0% -> 0.0%`), but caused **statistically significant regressions** on answerable retrieval quality and breached the proposed query latency budget:
+On the untouched **independent holdout** split (`30` cases across `7` disjoint source families, `41` indexed chunks, run `20261127T083806Z-efd3f59e`), T5 reduced unsupported returns from three to zero across four no-answer cases. It also reduced answerable retrieval quality and exceeded the proposed latency budget in this run:
 
 - **Primary metric (`passage_hit_at_5`)**: `-15.4 pp` (`88.5% -> 73.1%`), 95% paired bootstrap CI `[-30.8, -3.8] pp`, `0 wins / 4 losses / 22 ties` (CI strictly below zero).
 - **Graded ranking (`ndcg_at_5`)**: `-14.0 pp` (`0.850 -> 0.710`), 95% CI `[-27.9, -2.4] pp`, `0W / 4L / 22T`.
@@ -13,6 +13,11 @@ On the untouched **independent holdout** split (`30` cases across `7` disjoint s
 - **Slice regressions (holdout)**: `paraphrase` `-66.7 pp` (`2L/1T`), `cross_language` `-50.0 pp` (`1L/1T`), `multi_claim` `-50.0 pp` (`1L/1T`).
 - **Latency budget breach**: Cold-pass p95 latency increased `+17.9%` (`1.492 -> 1.758 ms`), exceeding the proposed `+10%` quality-candidate p95 cap.
 - **Rollback**: Byte-for-byte rollback to baseline verified (`rollback.passed=True`, `exact_float_match=True`, `retrieval_profile_id_match=True`, zero mismatches).
+
+The four Passage Hit@5 losses and zero wins give a two-sided exact paired
+`p = 0.125`. The reported bootstrap interval resamples individual cases. It
+does not account for source-family clustering. See the
+[facts and reasoning bank](facts-and-reasoning.yml) for the pinned quality rerun.
 
 > **Scope Warning (Offline Embedder)**: All measured numbers below use the deterministic offline `FixtureEmbedder` (`oracle-fixture-token-sha256-v1`, 1024-d token hashing, `provider_calls=0`). They measure Oracle's real ingestion, PDF/HTML/RST/MD/TXT extraction, chunking, v2 `.npz` snapshot storage, BM25L, cosine similarity, RRF fusion, deduplication, and `fetch()` citation integrity on modest hardware. They do **not** measure production neural embedding accuracy (e.g., BGE-large or Amazon Bedrock Titan v2), which remains **NOT RUN** pending separate authorization.
 

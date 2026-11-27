@@ -1,4 +1,4 @@
-# PR Evidence Map — Oracle Evidence Lab (Issue #39, Consolidating #7, #8, #30, #31)
+# Evidence Lab and compact query output
 
 Structured directly against [`.github/PULL_REQUEST_TEMPLATE.md`](../../.github/PULL_REQUEST_TEMPLATE.md) for reviewer verification.
 
@@ -9,6 +9,8 @@ Structured directly against [`.github/PULL_REQUEST_TEMPLATE.md`](../../.github/P
 ---
 
 ## Why this is needed
+
+[Issue #39](https://github.com/pavlosuperhero/oracle-rag/issues/39) asks where Oracle loses supporting evidence and whether a fix earns its cost. The compact CLI output also addresses a live smoke case where five topically related passages supported no answer, yet filled more than 1,500 words of output.
 
 Oracle RAG previously lacked:
 
@@ -22,6 +24,15 @@ This change delivers all four pillars with zero external/paid dependencies, exec
 ---
 
 ## Behavior and reproduction
+
+### Query output
+
+`oracle query "What Kubernetes namespace does PEP 8 require for Python formatting?"`
+now lists ranked candidates with IDs, citation locations and bounded untrusted previews.
+Previews are limited to 140 characters per item and 700 characters in total.
+Use `--full` or `--format text` for full excerpts and `--format json` for diagnostic JSON.
+For agents, MCP `search` lists candidates and `fetch` retrieves a selected passage.
+The candidate list does not determine whether a passage supports an answer.
 
 ### Runtime Behavior Changes (Default-Safe)
 
@@ -55,6 +66,12 @@ Observed verdict across runs `20261127T083622Z-bc8045fc` (`dev`) and `20261127T0
 
 ## Approach and scope
 
+The [facts and reasoning bank](facts-and-reasoning.yml) records the compact-output
+reproducer and the holdout quality rerun at `65c3d38` (`20261127T085919Z-3e236983`).
+All 12 recorded pipeline file hashes match that revision. The four paired passage-hit
+losses and zero wins yield an exact two-sided `p = 0.125`. The case-level bootstrap
+interval above does not account for source-family clustering.
+
 ### Consolidated Requirement Evidence Map (#39, #7, #8, #30, #31)
 
 | Issue | Requirement | Implementation / Artifact | Verification / Status |
@@ -78,7 +95,7 @@ uv run mypy
 ```
 
 Observed final full-suite verification (Python 3.14.5, macOS `arm64`):
-- `uv run pytest -q` (run with loopback socket access for `test_data.py` and `test_service.py`): **`593 passed in 50.42s`** (exit code `0`).
+- `uv run pytest -q` (run with loopback socket access for `test_data.py` and `test_service.py`): **`652 passed in 48.59s`** (exit code `0`).
 - `uv run ruff check src tests`: **`All checks passed!`** (exit code `0`).
 - `uv run mypy`: **`Success: no issues found in 39 source files`** (exit code `0`).
 - Targeted script lint (`uv run ruff check scripts/evidence_lab.py`): **`All checks passed!`** (exit code `0`).
@@ -91,6 +108,8 @@ Observed final full-suite verification (Python 3.14.5, macOS `arm64`):
 ---
 
 ## Oracle evidence and design review
+
+- Source `producing-oss`, query “patch submission self review testing reviewable changes”, indexed page 158, passage `6fb6555b3f4de32d1dd4b931`. The description gives reviewers the exact query, compatibility flags and evidence limits needed to assess the patch.
 
 ### Oracle RAG Queries Run
 
@@ -120,6 +139,8 @@ Cross-review deviations identified across Wave 2 and Wave 3 across all four work
 ---
 
 ## Compatibility and operational impact
+
+Scripts that previously parsed implicit full-text CLI output should pass `--format text`. The existing `--format json` contract remains available for machine consumers.
 
 - **CLI / HTTP / MCP**: Existing commands, query responses, and citations remain backward-compatible. HTTP/MCP responses now include a sanitized `X-Correlation-ID` header, and error payloads redact credentials/tokens.
 - **Saved indexes**: New indexes save as format version `2` with validated `IndexProvenance`. Existing v1 `.npz` snapshots continue to load cleanly with honest `provenance_status="legacy_unknown"`.
