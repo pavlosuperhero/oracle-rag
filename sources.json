@@ -1786,6 +1786,174 @@
           "url": "https://arxiv.org/pdf/2605.19952"
         }
       ]
+    },
+    {
+      "id": "checklist-behavioral-testing",
+      "title": "Beyond Accuracy: Behavioral Testing of NLP models with CheckList",
+      "source": "https://arxiv.org/abs/2005.04118",
+      "author": "Marco Tulio Ribeiro, Tongshuang Wu, Carlos Guestrin et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Behavioral test suites for NLP models instead of a single aggregate score; the testing layer of the testing, evals, calibration split. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "checklist-behavioral-testing.pdf",
+          "url": "https://arxiv.org/pdf/2005.04118"
+        }
+      ]
+    },
+    {
+      "id": "rethinking-testing-llm-apps",
+      "title": "Rethinking Testing for LLM Applications: Characteristics, Challenges, and a Lightweight Interaction Protocol",
+      "source": "https://arxiv.org/abs/2508.20737",
+      "author": "Wei Ma, Yixiao Yang, Qiang Hu et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Why classic software testing does not transfer directly to LLM applications. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "rethinking-testing-llm-apps.pdf",
+          "url": "https://arxiv.org/pdf/2508.20737"
+        }
+      ]
+    },
+    {
+      "id": "self-testing-quality-gate-llm",
+      "title": "Automated Self-Testing as a Quality Gate: Evidence-Driven Release Management for LLM Applications",
+      "source": "https://arxiv.org/abs/2603.15676",
+      "author": "Alexandre Cristovao Maiorano",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Uses automated tests as release gates for LLM applications. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "self-testing-quality-gate-llm.pdf",
+          "url": "https://arxiv.org/pdf/2603.15676"
+        }
+      ]
+    },
+    {
+      "id": "helm-holistic-evaluation",
+      "title": "Holistic Evaluation of Language Models",
+      "source": "https://arxiv.org/abs/2211.09110",
+      "author": "Percy Liang, Rishi Bommasani, Tony Lee et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Multi-metric evaluation framework for language models (HELM). Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "helm-holistic-evaluation.pdf",
+          "url": "https://arxiv.org/pdf/2211.09110"
+        }
+      ]
+    },
+    {
+      "id": "llm-evaluation-survey",
+      "title": "A Survey on Evaluation of Large Language Models",
+      "source": "https://arxiv.org/abs/2307.03109",
+      "author": "Yupeng Chang, Xu Wang, Jindong Wang et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Survey of what, where and how to evaluate LLMs. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "llm-evaluation-survey.pdf",
+          "url": "https://arxiv.org/pdf/2307.03109"
+        }
+      ]
+    },
+    {
+      "id": "rag-evaluation-survey",
+      "title": "Evaluation of Retrieval-Augmented Generation: A Survey",
+      "source": "https://arxiv.org/abs/2405.07437",
+      "author": "Hao Yu, Aoran Gan, Kai Zhang et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Survey of retrieval and generation evaluation for RAG systems. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "rag-evaluation-survey.pdf",
+          "url": "https://arxiv.org/pdf/2405.07437"
+        }
+      ]
+    },
+    {
+      "id": "ragas-rag-evaluation",
+      "title": "Ragas: Automated Evaluation of Retrieval Augmented Generation",
+      "source": "https://arxiv.org/abs/2309.15217",
+      "author": "Shahul Es, Jithin James, Luis Espinosa-Anke et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Reference-free metrics for RAG pipelines. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "ragas-rag-evaluation.pdf",
+          "url": "https://arxiv.org/pdf/2309.15217"
+        }
+      ]
+    },
+    {
+      "id": "llm-as-a-judge-mt-bench",
+      "title": "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena",
+      "source": "https://arxiv.org/abs/2306.05685",
+      "author": "Lianmin Zheng, Wei-Lin Chiang, Ying Sheng et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Agreement of LLM judges with human preferences and their biases. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "llm-as-a-judge-mt-bench.pdf",
+          "url": "https://arxiv.org/pdf/2306.05685"
+        }
+      ]
+    },
+    {
+      "id": "who-validates-the-validators",
+      "title": "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences",
+      "source": "https://arxiv.org/abs/2404.12272",
+      "author": "Shreya Shankar, J. D. Zamfirescu-Pereira, Bjorn Hartmann et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Aligning LLM-assisted evaluators with human preferences. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "who-validates-the-validators.pdf",
+          "url": "https://arxiv.org/pdf/2404.12272"
+        }
+      ]
+    },
+    {
+      "id": "evaluation-driven-iteration-llm-apps",
+      "title": "When Generic Prompt Improvements Hurt: Evaluation-Driven Iteration for LLM Applications",
+      "source": "https://arxiv.org/abs/2601.22025",
+      "author": "Daniel Commey",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Measure each change before keeping it when iterating on LLM applications. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "evaluation-driven-iteration-llm-apps.pdf",
+          "url": "https://arxiv.org/pdf/2601.22025"
+        }
+      ]
+    },
+    {
+      "id": "calibration-modern-neural-networks",
+      "title": "On Calibration of Modern Neural Networks",
+      "source": "https://arxiv.org/abs/1706.04599",
+      "author": "Chuan Guo, Geoff Pleiss, Yu Sun et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Standard reference for confidence calibration. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "calibration-modern-neural-networks.pdf",
+          "url": "https://arxiv.org/pdf/1706.04599"
+        }
+      ]
+    },
+    {
+      "id": "lms-mostly-know-what-they-know",
+      "title": "Language Models (Mostly) Know What They Know",
+      "source": "https://arxiv.org/abs/2207.05221",
+      "author": "Saurav Kadavath, Tom Conerly, Amanda Askell et al.",
+      "license": "arXiv non-exclusive distribution license; authors retain copyright. Preserve attribution and the arXiv identifier.",
+      "note": "Language model self-evaluation and confidence versus correctness. Relevant to AI-application testing, evaluation and calibration.",
+      "downloads": [
+        {
+          "filename": "lms-mostly-know-what-they-know.pdf",
+          "url": "https://arxiv.org/pdf/2207.05221"
+        }
+      ]
     }
   ]
 }

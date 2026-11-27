@@ -138,6 +138,10 @@ Cross-review deviations identified across Wave 2 and Wave 3 across all four work
 
 ---
 
+### Reference sources added
+
+`sources.json` now lists 14 arXiv papers (arXiv non-exclusive license, attribution preserved): two on agent memory (ReasoningBank 2509.25140, Beyond Atomic Facts 2605.19952) and twelve on testing, evaluation and calibration of LLM applications (CheckList 2005.04118, HELM 2211.09110, Ragas 2309.15217, RAG evaluation survey 2405.07437, calibration of neural networks 1706.04599, and seven more). Smoke check on a throwaway index: 14 papers ingested (two runs: 139 and 951 chunks); every probe query returned a passage from a relevant paper. A full `oracle ingest` stops on the existing `postgresql-18-A4.pdf` (over the 2,000-page limit); that is unrelated to this change and was not bypassed.
+
 ## Compatibility and operational impact
 
 Scripts that previously parsed implicit full-text CLI output should pass `--format text`. The existing `--format json` contract remains available for machine consumers.
