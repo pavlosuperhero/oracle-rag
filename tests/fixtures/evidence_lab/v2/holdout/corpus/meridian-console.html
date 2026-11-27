@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Meridian Diagnostics Console Guide</title></head>
+<body>
+<header role="banner">Meridian Docs Navigation</header>
+<main>
+<h1>Meridian Diagnostics Console</h1>
+<p>MERIDIAN_205 indicates that the remote trace collector paused due to disk quota limits.</p>
+<h2>Supported Ports</h2>
+<table>
+<thead><tr><th>Service</th><th>Port</th><th>Protocol</th></tr></thead>
+<tbody>
+<tr><td>Trace Ingest</td><td>The trace ingest listener binds to TCP port 7443 with mutual TLS.</td><td>mTLS</td></tr>
+<tr><td>Health Probe</td><td>HTTP readiness probe listens on port 7440.</td><td>HTTP</td></tr>
+</tbody>
+</table>
+<h2>Operator Actions</h2>
+<ul>
+<li>Drain active diagnostic sessions before rotating the console TLS bundle.</li>
+<li>Verify audit stream delivery after every collector restart.</li>
+</ul>
+<p>Operational note 1 for meridian-html (trace-buffers): During routine shift handoffs, operators inspect the telemetry dashboard for meridian-html across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for trace-buffers, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.</p>
+<p>Operational note 2 for meridian-html (console-sessions): During routine shift handoffs, operators inspect the telemetry dashboard for meridian-html across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for console-sessions, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.</p>
+<p>Operational note 3 for meridian-html (tls-rotation): During routine shift handoffs, operators inspect the telemetry dashboard for meridian-html across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for tls-rotation, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.</p>
+<p>Operational note 4 for meridian-html (disk-quotas): During routine shift handoffs, operators inspect the telemetry dashboard for meridian-html across rack bay 14, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for disk-quotas, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.</p>
+<script>const hiddenDiag = 'MERIDIAN_418 signals an internal test harness trap.';</script>
+</main>
+<footer>Meridian Synthetic Documentation</footer>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# Juniper cache training
+An example checks sample replica logs for warning JUNIPER_097. The example has no production recovery procedure.
+The training sandbox resets the cache every hour to make exercises repeatable.

@@ -1,0 +1,122 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R 12 0 R] /Count 5 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 387 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+16 TL
+(Kestrel Telemetry Pipeline Manual - Page 1) Tj
+T* (Section 1: Frame Verification) Tj
+T* (Invoke kestrel.frame.verify\(\) to validate CRC-32C checksums on incoming telemetry packets.) Tj
+T* (Corrupted frames are routed to the quarantine ring for offline inspection.) Tj
+T* (Standard ingestion pipelines process frames in deterministic sequence order.) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 428 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+16 TL
+(Kestrel Telemetry Pipeline Manual - Page 2) Tj
+T* (Section 2: Error Code Table) Tj
+T* (Code | Condition | Remediation) Tj
+T* (KESTREL_709 | Telemetry ring buffer reached 95 percent watermark. | Scale consumers) Tj
+T* (KESTREL_712 | Schema registry version mismatch on decoder worker. | Pin decoder) Tj
+T* (KESTREL_720 | Downstream parquet writer stalled on object flush. | Check bucket IOPS) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 346 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+16 TL
+(Kestrel Telemetry Pipeline Manual - Page 3) Tj
+T* (Section 3: Deployment Requirements) Tj
+T* (- Allocate at least 4 GiB of locked memory per telemetry collector worker.) Tj
+T* (- Bind metrics exporter to loopback address 127.0.0.1 port 9418.) Tj
+T* (- Enable gzip compression only on cold archival transfers.) Tj
+ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 353 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+16 TL
+(Kestrel Telemetry Pipeline Manual - Page 4) Tj
+T* (Section 4: Hot Cache Retention) Tj
+T* (Hot telemetry partitions remain queryable in NVMe cache for 36 hours.) Tj
+T* (Collector hosts monitor NVMe wear gauges during hourly health sweeps.) Tj
+T* (Operators inspect cache hit ratios via the local collector dashboard.) Tj
+ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 13 0 R >>
+endobj
+13 0 obj
+<< /Length 339 >>
+stream
+BT
+/F1 11 Tf
+50 750 Td
+16 TL
+(Kestrel Telemetry Pipeline Manual - Page 5) Tj
+T* (Section 5: Cold Archival Retention) Tj
+T* (Cold parquet bundles are retained in archival object storage for 180 days.) Tj
+T* (Lifecycle sweeps execute nightly at 02:15 UTC.) Tj
+T* (Archive integrity manifests are verified every Sunday before pruning.) Tj
+ET
+endstream
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000141 00000 n 
+0000000211 00000 n 
+0000000337 00000 n 
+0000000774 00000 n 
+0000000900 00000 n 
+0000001378 00000 n 
+0000001504 00000 n 
+0000001900 00000 n 
+0000002028 00000 n 
+0000002432 00000 n 
+0000002560 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+2950
+%%EOF

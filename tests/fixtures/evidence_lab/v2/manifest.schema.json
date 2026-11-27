@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "FixtureSource": {
+      "additionalProperties": false,
+      "description": "Frozen source document entry inside a version-2 fixture manifest.",
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "uri": {
+          "minLength": 1,
+          "title": "Uri",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "revision": {
+          "minLength": 1,
+          "title": "Revision",
+          "type": "string"
+        },
+        "family": {
+          "minLength": 1,
+          "title": "Family",
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "txt",
+            "md",
+            "rst",
+            "html",
+            "pdf"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "provenance_tag": {
+          "const": "authored-synthetic",
+          "default": "authored-synthetic",
+          "title": "Provenance Tag",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "uri",
+        "sha256",
+        "revision",
+        "family",
+        "format"
+      ],
+      "title": "FixtureSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Version-2 frozen split manifest with source hashes and split metadata.",
+  "properties": {
+    "schema_version": {
+      "const": 2,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "split": {
+      "enum": [
+        "dev",
+        "holdout"
+      ],
+      "title": "Split",
+      "type": "string"
+    },
+    "provenance": {
+      "minLength": 1,
+      "title": "Provenance",
+      "type": "string"
+    },
+    "adjudication": {
+      "minLength": 1,
+      "title": "Adjudication",
+      "type": "string"
+    },
+    "cases_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Cases Sha256",
+      "type": "string"
+    },
+    "adjudication_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Adjudication Sha256",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/FixtureSource"
+      },
+      "minItems": 1,
+      "title": "Sources",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "split",
+    "provenance",
+    "adjudication",
+    "cases_sha256",
+    "adjudication_sha256",
+    "sources"
+  ],
+  "title": "FixtureManifest",
+  "type": "object"
+}

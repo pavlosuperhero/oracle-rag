@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "uri",
+        "sha256",
+        "revision"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "provenance": {
+      "const": "authored-synthetic-development",
+      "title": "Provenance",
+      "type": "string"
+    },
+    "adjudication": {
+      "const": "provisional-single-author",
+      "title": "Adjudication",
+      "type": "string"
+    },
+    "cases_sha256": {
+      "title": "Cases Sha256",
+      "type": "string"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "title": "Sources",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "provenance",
+    "adjudication",
+    "cases_sha256",
+    "sources"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AdjudicationEntry": {
+      "additionalProperties": false,
+      "description": "Independent dual-pass review and resolution record for one case.",
+      "properties": {
+        "case_id": {
+          "minLength": 1,
+          "title": "Case Id",
+          "type": "string"
+        },
+        "reviewer_1_judgment": {
+          "minLength": 1,
+          "title": "Reviewer 1 Judgment",
+          "type": "string"
+        },
+        "reviewer_2_judgment": {
+          "minLength": 1,
+          "title": "Reviewer 2 Judgment",
+          "type": "string"
+        },
+        "disagreement": {
+          "title": "Disagreement",
+          "type": "boolean"
+        },
+        "resolution": {
+          "default": "",
+          "title": "Resolution",
+          "type": "string"
+        },
+        "final_status": {
+          "enum": [
+            "agreed",
+            "adjudicated",
+            "ambiguous"
+          ],
+          "title": "Final Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "case_id",
+        "reviewer_1_judgment",
+        "reviewer_2_judgment",
+        "disagreement",
+        "final_status"
+      ],
+      "title": "AdjudicationEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Dual-pass adjudication log covering all cases in a fixture split.",
+  "properties": {
+    "schema_version": {
+      "const": 2,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "split": {
+      "enum": [
+        "dev",
+        "holdout"
+      ],
+      "title": "Split",
+      "type": "string"
+    },
+    "rubric_version": {
+      "minLength": 1,
+      "title": "Rubric Version",
+      "type": "string"
+    },
+    "reviewer_1": {
+      "minLength": 1,
+      "title": "Reviewer 1",
+      "type": "string"
+    },
+    "reviewer_2": {
+      "minLength": 1,
+      "title": "Reviewer 2",
+      "type": "string"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/AdjudicationEntry"
+      },
+      "minItems": 1,
+      "title": "Entries",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "split",
+    "rubric_version",
+    "reviewer_1",
+    "reviewer_2",
+    "entries"
+  ],
+  "title": "AdjudicationRecord",
+  "type": "object"
+}

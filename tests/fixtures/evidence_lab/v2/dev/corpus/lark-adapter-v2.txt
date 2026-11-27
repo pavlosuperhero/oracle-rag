@@ -1,0 +1,33 @@
+Lark Adapter Reference Guide — Revision 2 (Current)
+
+Section 1: Lease Lifecycle and Connection Flags
+
+The lark.open() call returns a connection lease valid for 18 seconds in revision 2.
+
+LARK_421 indicates the lease was presented to the wrong region.
+
+When closing an idle connection, call lark.release() before flushing the diagnostics queue.
+
+Operational note 1 for lark-adapter-v2 (connection-pool): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v2 across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for connection-pool, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 2 for lark-adapter-v2 (region-routing): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v2 across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for region-routing, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Section 2: Retry Policy and CLI Options
+
+A transient lookup failure is retried twice with delays of 70 and 140 milliseconds.
+
+Pass --max-retry-count=6 when starting the regional bridge daemon under bursty uplink load.
+
+Operational note 3 for lark-adapter-v2 (backoff-telemetry): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v2 across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for backoff-telemetry, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 4 for lark-adapter-v2 (bridge-metrics): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v2 across rack bay 14, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for bridge-metrics, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Section 3: Distributed Lock Protocol
+
+Use token path v2.4/sync:lock to coordinate leader handoff across twin edge brokers.
+
+A partial lease renewal logs LARK_104 as informational status while keeping the existing region binding.
+
+Operational note 5 for lark-adapter-v2 (broker-audit): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v2 across rack bay 15, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for broker-audit, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 6 for lark-adapter-v2 (shutdown-order): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v2 across rack bay 16, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for shutdown-order, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.

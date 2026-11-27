@@ -1,0 +1,13 @@
+Lark Adapter Reference Guide — Revision 1 (Superseded)
+
+The lark.open() call returns a connection lease valid for 45 seconds under revision 1.
+
+LARK_421 indicates the lease signature is expired in revision 1.
+
+Legacy retry flag --max-retry-count defaults to 2 in revision 1 and cannot exceed 3.
+
+Operational note 1 for lark-adapter-v1 (legacy-handshake): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v1 across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for legacy-handshake, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 2 for lark-adapter-v1 (legacy-diagnostics): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v1 across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for legacy-diagnostics, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 3 for lark-adapter-v1 (legacy-teardown): During routine shift handoffs, operators inspect the telemetry dashboard for lark-adapter-v1 across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for legacy-teardown, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.

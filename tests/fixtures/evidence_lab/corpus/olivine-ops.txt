@@ -1,0 +1,3 @@
+# Olivine operations guide
+ORBIT_725 means the coolant pressure sensor is disconnected.
+The Olivine control plane accepts maintenance writes during the morning inspection period.

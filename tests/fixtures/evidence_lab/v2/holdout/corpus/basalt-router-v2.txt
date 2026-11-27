@@ -1,0 +1,39 @@
+Basalt Edge Router Guide — Revision 2 (Current)
+
+Section 1: Forwarding Plane API
+
+The basalt.route() entry point pins sticky tenant flows for 42 seconds per session.
+
+BASALT_612 indicates the upstream peering circuit dropped below minimum signal margin.
+
+Operational note 1 for basalt-router-v2 (sticky-sessions): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for sticky-sessions, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 2 for basalt-router-v2 (peering-health): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for peering-health, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Section 2: Egress Shaping and Drain Paths
+
+Configure --egress-burst-cap=32 to absorb micro-bursts on 10GbE edge uplinks.
+
+Trigger graceful node evacuation via control channel v3.1/mesh:drain before kernel patching.
+
+Operational note 3 for basalt-router-v2 (uplink-shaping): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for uplink-shaping, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 4 for basalt-router-v2 (mesh-topology): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 14, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for mesh-topology, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Section 3: Failover Timing
+
+When an active edge gateway misses four health probes, standby failover completes within 950 milliseconds.
+
+Health probes are sent over the dedicated loopback vlan every 250 milliseconds.
+
+Operational note 5 for basalt-router-v2 (probe-jitter): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 15, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for probe-jitter, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 6 for basalt-router-v2 (gateway-audit): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 16, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for gateway-audit, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Section 4: Regional BGP Maintenance
+
+Operational note 7 for basalt-router-v2 (bgp-communities): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 17, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for bgp-communities, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 8 for basalt-router-v2 (route-reflectors): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 18, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for route-reflectors, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 9 for basalt-router-v2 (prefix-filters): During routine shift handoffs, operators inspect the telemetry dashboard for basalt-router-v2 across rack bay 19, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for prefix-filters, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.

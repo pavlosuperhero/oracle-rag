@@ -1,0 +1,154 @@
+{
+  "schema_version": 2,
+  "split": "dev",
+  "provenance": "authored-synthetic-development",
+  "adjudication": "dual-pass-rubric-audited",
+  "cases_sha256": "56ef1c0782923d5d25618be59ff6a4c30400ea9a923d9d120a3224ede3b8718c",
+  "adjudication_sha256": "48fe2c5207b0452f51e04d4c92619ac7c2cdc5909652b5a00dbb4a94e617919a",
+  "sources": [
+    {
+      "path": "acorn-guide.html",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/acorn-guide.html",
+      "sha256": "a64b0e1e68086ad652212e9de1bc9c16b831ec0fd43c3a28227a6e6ff17a818a",
+      "revision": "v2",
+      "family": "acorn-html",
+      "format": "html",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "cedar-manual.rst",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/cedar-manual.rst",
+      "sha256": "cf8723d3ea4b3dd89b0c8bf6c92ee718c898a6c0231987c889c9f84041e6ec46",
+      "revision": "v2",
+      "family": "cedar-manual",
+      "format": "rst",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "juniper-cache-ops.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/juniper-cache-ops.txt",
+      "sha256": "e2f3b04030336ef69d253ffb5a0cbe48c84ab55c8333e42e964d90a5566a7416",
+      "revision": "v2",
+      "family": "juniper-cache",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "juniper-cache-training.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/juniper-cache-training.txt",
+      "sha256": "5b9a9a0c84130684c1f4b8cd671e5642988a941bbbe2365e2b4f96d2ceeabb44",
+      "revision": "v1",
+      "family": "juniper-cache",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "lark-adapter-v1.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/lark-adapter-v1.txt",
+      "sha256": "7b2a14c2f9a3ceb07e0ba88716b63e65cb4c4547854dee67c33decc14a5f7410",
+      "revision": "v1",
+      "family": "lark-adapter",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "lark-adapter-v2.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/lark-adapter-v2.txt",
+      "sha256": "f572314bf8b37b5a056ef655fecb4b01f6269d544db22126188032b494112908",
+      "revision": "v2",
+      "family": "lark-adapter",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "olivine-ops.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/olivine-ops.txt",
+      "sha256": "dbfa211a67962f29c9f141ceceecd9e4583b4709bcf842630d82752ba8b68807",
+      "revision": "v2",
+      "family": "olivine-ops",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "olivine-poison-archive.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/olivine-poison-archive.txt",
+      "sha256": "b6730aa28ee4498982e5245a352334f0a43796dfc3babe306772ee1264ef265f",
+      "revision": "v1-poison",
+      "family": "olivine-ops",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "oriya-clock-en.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/oriya-clock-en.txt",
+      "sha256": "6692c44b0a85225b66f4607aee7c3c4ef69e178890dc04f4fcaf73cae8997250",
+      "revision": "v2",
+      "family": "oriya-clock",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "oriya-clock-uk.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/oriya-clock-uk.txt",
+      "sha256": "c681d8d61728ec868ecc2a31ebaf38749bfea4fe756b537c329d9378edb6edb5",
+      "revision": "v2",
+      "family": "oriya-clock",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "quartz-handbook.pdf",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/quartz-handbook.pdf",
+      "sha256": "2390de698640f67ff37e486a7036af386630b4172db9b5246a6d9c094765dade",
+      "revision": "v2",
+      "family": "quartz-pdf",
+      "format": "pdf",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "slate-queue-faq.md",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/slate-queue-faq.md",
+      "sha256": "f48ba7503bbb50a5fac75bd13e332cac3ce14a00d3923c31941219fddf86c904",
+      "revision": "v2",
+      "family": "slate-queue",
+      "format": "md",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "slate-queue.md",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/slate-queue.md",
+      "sha256": "413dcaf94abe6475d9b53c88ad123689d8f7bfbc075fc18726b45d7687e27650",
+      "revision": "v2",
+      "family": "slate-queue",
+      "format": "md",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "vela-relay-copy.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/vela-relay-copy.txt",
+      "sha256": "2f3e1669a72f7eb02920af8e3c3a4df08515e439c9d4aa6db2fbccffb3f0fbdc",
+      "revision": "v3",
+      "family": "vela-relay",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "vela-relay-v2.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/vela-relay-v2.txt",
+      "sha256": "bda17e17d0e1717da270a099add366de49c2ca540794067028af151ca00e6dd9",
+      "revision": "v2",
+      "family": "vela-relay",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    },
+    {
+      "path": "vela-relay-v3.txt",
+      "uri": "fixture://oracle-evidence-lab/v2/dev/vela-relay-v3.txt",
+      "sha256": "2f3e1669a72f7eb02920af8e3c3a4df08515e439c9d4aa6db2fbccffb3f0fbdc",
+      "revision": "v3",
+      "family": "vela-relay",
+      "format": "txt",
+      "provenance_tag": "authored-synthetic"
+    }
+  ]
+}

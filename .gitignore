@@ -14,3 +14,6 @@ wheels/
 
 # CodeMie analytics exports
 docs/codemie/
+
+# Local Oracle Evidence Lab runs
+/trial-results/

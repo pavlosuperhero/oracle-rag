@@ -1,0 +1,5 @@
+# Lark adapter, revision 2
+The lark.open() call returns a connection lease valid for 18 seconds.
+LARK_421 indicates the lease was presented to the wrong region.
+When closing an idle connection, call lark.release() before flushing the diagnostics queue.
+A transient lookup failure is retried twice with delays of 70 and 140 milliseconds.

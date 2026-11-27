@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "provenance": "authored-synthetic-development",
+  "adjudication": "provisional-single-author",
+  "cases_sha256": "bb065eb2f0e42f79eea8689e6053c037821d432d492e0852139b3aac98057a6f",
+  "sources": [
+    {
+      "path": "adapter-v1.txt",
+      "uri": "fixture://oracle-evidence-lab/adapter-v1.txt",
+      "sha256": "fc4a6a114b06ee902e4c449eaa28f2363a42743ab13857053d234b113e8c95a9",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "adapter-v2.txt",
+      "uri": "fixture://oracle-evidence-lab/adapter-v2.txt",
+      "sha256": "24e45f59b4f5a52205cb7646361169f607c82739584b8970a9f81586f4067100",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "cache-ops.txt",
+      "uri": "fixture://oracle-evidence-lab/cache-ops.txt",
+      "sha256": "4a0bfb4d641da05ed1e011a83609e01634bdb1aa350dabd4475706325cb6d37d",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "cache-training.txt",
+      "uri": "fixture://oracle-evidence-lab/cache-training.txt",
+      "sha256": "38b8bbdceca4d288f3c83b2b95fb1c32ce20566bc51b2cf5c4c1c58052b71729",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "cedar-manual.txt",
+      "uri": "fixture://oracle-evidence-lab/cedar-manual.txt",
+      "sha256": "228b55a585ea3a95b7cc37079f7753d2248ac4e212b2a8799c2c39565ede3a07",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "clock-en.txt",
+      "uri": "fixture://oracle-evidence-lab/clock-en.txt",
+      "sha256": "307971ecc803146c45101a36b8acffe347dc1ef1fd485c6229e6b2d1b3df56bf",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "clock-uk.txt",
+      "uri": "fixture://oracle-evidence-lab/clock-uk.txt",
+      "sha256": "a59311d3c7c7e63243005d08a9bb35507ed569f419252ece56b6564b7c793e7d",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "extract.html",
+      "uri": "fixture://oracle-evidence-lab/extract.html",
+      "sha256": "814ca554e02c8b5662d0101bb94b9876095aa22fb53495f12a0d14dfc430d751",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "olivine-ops.txt",
+      "uri": "fixture://oracle-evidence-lab/olivine-ops.txt",
+      "sha256": "5a3b3a497fdf1eefcebc8d749fe79bdb53a26ddb387a53df0c76912c14917c89",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "poison-training.txt",
+      "uri": "fixture://oracle-evidence-lab/poison-training.txt",
+      "sha256": "feee860440ce706238927ec11c81aa9b61dfd99461318e631d843830e5870553",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "queue-faq.md",
+      "uri": "fixture://oracle-evidence-lab/queue-faq.md",
+      "sha256": "f99f9c1311446f9fdcc1085a68dfc00a7f9a1c9eaf3361c9ef017dbd93b1609d",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "queue.md",
+      "uri": "fixture://oracle-evidence-lab/queue.md",
+      "sha256": "b71fb59b436de58c6efcbfe74c3b04d9b054097d95b479571731e91f679fac38",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "relay-copy.txt",
+      "uri": "fixture://oracle-evidence-lab/relay-copy.txt",
+      "sha256": "bab8dca5ec95cf6d8b3e6d693d2796547083d42a94547b4511e0b847ac8e2884",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "relay-v2.txt",
+      "uri": "fixture://oracle-evidence-lab/relay-v2.txt",
+      "sha256": "45d18a8ed9c223110ee1c8b6e70034533fff314da1d3a21eb5e05098f8002039",
+      "revision": "fixture-v1"
+    },
+    {
+      "path": "relay-v3.txt",
+      "uri": "fixture://oracle-evidence-lab/relay-v3.txt",
+      "sha256": "bab8dca5ec95cf6d8b3e6d693d2796547083d42a94547b4511e0b847ac8e2884",
+      "revision": "fixture-v1"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+Vela Relay Guide — Revision 2 (Deprecated)
+
+A VELA_209 warning meant the primary ring exceeded temperature threshold in revision 2.
+
+The relay heartbeat interval is 21 seconds in revision 2.
+
+The former command vela.auth.rotate() required no draining in revision 2.
+
+Operational note 1 for vela-relay-v2 (ring-legacy): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v2 across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for ring-legacy, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 2 for vela-relay-v2 (token-legacy): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v2 across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for token-legacy, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 3 for vela-relay-v2 (upgrade-warnings): During routine shift handoffs, operators inspect the telemetry dashboard for vela-relay-v2 across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for upgrade-warnings, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.

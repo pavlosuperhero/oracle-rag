@@ -1,0 +1,4 @@
+# Lark adapter, revision 1 (superseded)
+The lark.open() call returns a connection lease valid for 10 seconds.
+LARK_421 indicates the lease signature is expired.
+In revision 1 only, call lark.detach() to close idle connections.

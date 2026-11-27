@@ -1,0 +1,31 @@
+Juniper Cache Operations Manual
+
+Section 1: Namespace Invalidation
+
+The juniper-cache invalidates only entries whose namespace fingerprint changes.
+
+A tombstone is kept for 23 minutes to prevent stale replicas from restoring deleted items.
+
+Operational note 1 for juniper-cache (eviction-ring): During routine shift handoffs, operators inspect the telemetry dashboard for juniper-cache across rack bay 11, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for eviction-ring, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 2 for juniper-cache (memory-slabs): During routine shift handoffs, operators inspect the telemetry dashboard for juniper-cache across rack bay 12, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for memory-slabs, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Section 2: Verification and Integrity Checks
+
+The command juniper.cache.verify() compares the replica checksum with the local journal.
+
+Operators can inspect cache drift summaries using the status overview panel.
+
+Operational note 3 for juniper-cache (journal-compaction): During routine shift handoffs, operators inspect the telemetry dashboard for juniper-cache across rack bay 13, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for journal-compaction, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 4 for juniper-cache (replica-sync): During routine shift handoffs, operators inspect the telemetry dashboard for juniper-cache across rack bay 14, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for replica-sync, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Section 3: Cold-Start Throttling
+
+Cold-start warmups cap backfill concurrency at 12 parallel shard streams and pause when disk queue depth exceeds 64.
+
+During cold-start warmup, backfill concurrency is limited to 12 parallel shard streams.
+
+Operational note 5 for juniper-cache (warmup-audit): During routine shift handoffs, operators inspect the telemetry dashboard for juniper-cache across rack bay 15, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for warmup-audit, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
+
+Operational note 6 for juniper-cache (shard-health): During routine shift handoffs, operators inspect the telemetry dashboard for juniper-cache across rack bay 16, verify that the ambient cooling intake stays within nominal seasonal tolerances, and confirm that weekly archive rotation completed before the midnight maintenance checklist. Capacity planning teams review rolling fourteen-day utilization charts for shard-health, comparing peak burst volume against provisioned headroom and noting any scheduled firmware staging windows in the regional calendar. Incident commanders keep printed escalation trees beside the console desk and record routine drill timestamps in the shared station logbook without modifying active production parameters or altering steady-state routing weights.
